@@ -1,0 +1,1285 @@
+@import "tailwindcss";
+
+/* ==================================================================
+   ŹPF DESIGN TOKENS
+   The whole site is one dark, cinematic surface. Colour is carried by
+   the photography; the interface stays near-black, warm white and a
+   single red accent used only for emphasis.
+   ================================================================== */
+@theme {
+  --color-ink: #080808; /* page black */
+  --color-charcoal: #151515; /* raised surfaces */
+  --color-smoke: #1d1d1d; /* hover surfaces */
+  --color-bone: #f2f0eb; /* primary type */
+  --color-ash: #92908c; /* secondary type */
+  --color-signal: #e51b2b; /* accent, used sparingly */
+  --color-amber: #c59a69; /* photographic warmth, not UI decoration */
+
+  --color-rule: rgba(255, 255, 255, 0.16);
+  --color-rule-soft: rgba(255, 255, 255, 0.08);
+
+  /* ---- TYPOGRAPHY -------------------------------------------------
+     Three families, served by Adobe Fonts, each with one job. See
+     src/lib/fonts.ts for the web project they come from.
+
+       display  Freight Display Pro — the voice. Every oversized line.
+       sans     Acumin Pro — the apparatus. Navigation, copy, buttons.
+       slate    Courier Prime — the technical record. Frame counters,
+                film stock, the camera's own markings. The typeface
+                screenplays are set in, used only where the site is
+                reporting a specification.
+
+     Each stack names its Adobe family first and then falls through to
+     faces of the same species, so an unconfigured install or a failed
+     stylesheet changes the letterforms and nothing else. The sans
+     falls to Space Grotesk, which Next self-hosts, so the interface
+     never lands on Arial.
+     ------------------------------------------------------------------ */
+  --font-display: "freight-display-pro", "Hoefler Text", Baskerville,
+    "Palatino Linotype", Georgia, "Times New Roman", serif;
+  --font-sans: "acumin-pro", var(--font-grotesk), "Helvetica Neue", Helvetica,
+    Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-slate: "courier-prime", ui-monospace, "SF Mono", SFMono-Regular, Menlo,
+    "Courier New", monospace;
+
+  /* Shared easing: slow out, no bounce. Everything uses this. */
+  --ease-cine: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ==================================================================
+   BASE
+   ================================================================== */
+@layer base {
+  :root {
+    color-scheme: dark;
+    /* Horizontal page gutter, used by .shell and full-bleed sections. */
+    --gutter: 1.25rem;
+  }
+
+  @media (min-width: 48rem) {
+    :root {
+      --gutter: 2.5rem;
+    }
+  }
+
+  @media (min-width: 80rem) {
+    :root {
+      --gutter: 4rem;
+    }
+  }
+
+  * {
+    min-width: 0;
+  }
+
+  html {
+    /* The fallback for no-JS and reduced-motion visitors. While Lenis
+       is running it scrolls with behavior: "instant" internally, so
+       this never competes with it. */
+    scroll-behavior: smooth;
+    /* Keep anchored sections clear of the fixed header. */
+    scroll-padding-top: 5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ink);
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    /* Acumin Pro Regular is the designed text weight. The site keeps
+       its airy feel from the display face and from colour, not from
+       setting body copy a weight below what it was drawn for — which
+       on a near-black background is where legibility goes. */
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Nothing on the page may cause a sideways scroll. */
+    overflow-x: clip;
+  }
+
+  ::selection {
+    background-color: var(--color-signal);
+    color: var(--color-bone);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 3px;
+  }
+
+  /* The custom cursor replaces the system one, but only once it has
+     actually moved — see Cursor.tsx. Text fields keep their I-beam. */
+  body[data-cursor="on"],
+  body[data-cursor="on"] *:not(input):not(textarea) {
+    cursor: none;
+  }
+
+  body[data-cursor="on"] input,
+  body[data-cursor="on"] textarea {
+    cursor: text;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ==================================================================
+   LAYOUT + EDITORIAL UTILITIES
+   ================================================================== */
+@utility shell {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 100rem;
+  padding-inline: var(--gutter);
+}
+
+/* Small uppercase metadata: eyebrows, indices, captions.
+   Medium rather than regular, because Acumin Pro at 11px over
+   photography needs the extra stem to hold; tracking pulled back from
+   0.22em, which was compensating for a geometric sans and now only
+   loosens words into letters. Figures are tabular so the section
+   indices down the page sit in one column. */
+@utility meta {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+@media (min-width: 48rem) {
+  .meta {
+    font-size: 0.75rem;
+    letter-spacing: 0.19em;
+  }
+}
+
+/* The technical record: film stock, frame counters, slate data. Set in
+   the typeface screenplays are written in, and used sparingly — it is
+   the site reporting a specification, never the site talking. */
+@utility slate {
+  font-family: var(--font-slate);
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Oversized display type.
+   A high-contrast serif needs the opposite treatment to a grotesque:
+   leading that clears its own ascenders and descenders rather than
+   crushing them, and tracking barely off zero — the drawing already
+   carries the tension that negative tracking was adding. */
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 300;
+  /* Leading comes through a custom property rather than being set
+     outright, so a call site that needs a looser measure — a pull
+     quote running to four lines, say — can say
+     [--display-leading:1.18] and win deterministically, instead of
+     depending on which utility Tailwind happens to emit last. */
+  line-height: var(--display-leading, 1.02);
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+
+/* The italic is an accent, not a mood: one phrase per composition.
+   Freight Display's italic is a drawn italic rather than a slanted
+   roman, so it needs no size compensation — only a hair of positive
+   tracking, because its tighter fit reads as cramped beside the roman
+   at this scale. */
+.display em,
+.display i,
+.display [data-accent] {
+  font-style: italic;
+  font-weight: 300;
+  letter-spacing: 0.002em;
+}
+
+/* A hairline that draws itself in when revealed. */
+@utility rule {
+  height: 1px;
+  width: 100%;
+  background-color: var(--color-rule);
+  transform-origin: left center;
+}
+
+/* ==================================================================
+   MOTION PRIMITIVES
+   Elements start visible so the page is complete without JavaScript.
+   GSAP sets the "from" state before first paint when it is available.
+   ================================================================== */
+@utility link-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.link-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -0.15em;
+  height: 1px;
+  width: 100%;
+  background-color: currentColor;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 0.5s var(--ease-cine);
+}
+
+.link-underline:hover::after,
+.link-underline:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+/* Film grain, tiled over the whole page. Static: a composited layer
+   costs nothing, while an animated full-screen blend layer would
+   repaint on every scroll frame. */
+.grain-layer {
+  background-image: url("/brand/grain.png");
+  background-repeat: repeat;
+  background-size: 160px 160px;
+  mix-blend-mode: overlay;
+  opacity: 0.085;
+}
+
+/* Hero scroll cue: a short bar falling down a hairline. */
+@keyframes cue {
+  0% { transform: translateY(-100%); }
+  60%, 100% { transform: translateY(300%); }
+}
+
+/* ==================================================================
+   THE FILM ROLL — "Inside the frame"
+   The perforations are drawn on the strip itself, not on each frame,
+   so the sprocket pitch stays continuous and perfectly aligned however
+   far the strip travels.
+   ================================================================== */
+.film-strip {
+  --perf-pitch: 34px;
+  --perf-hole: 15px;
+  --rail: 30px;
+  background-color: #0b0b0b;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(242, 240, 235, 0.18) 0 var(--perf-hole),
+      transparent var(--perf-hole) var(--perf-pitch)
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(242, 240, 235, 0.18) 0 var(--perf-hole),
+      transparent var(--perf-hole) var(--perf-pitch)
+    );
+  background-size: 13px 100%, 13px 100%;
+  background-position: 9px 0, calc(100% - 9px) 0;
+  background-repeat: repeat-y, repeat-y;
+  padding-inline: var(--rail);
+}
+
+@media (min-width: 64rem) {
+  .film-strip {
+    --perf-pitch: 42px;
+    --perf-hole: 18px;
+    --rail: 38px;
+  }
+}
+
+/* One frame of film. Dimmed until it reaches the centre of the gate. */
+.film-gate {
+  transition:
+    opacity 0.55s var(--ease-cine),
+    transform 0.55s var(--ease-cine);
+}
+
+@media (min-width: 64rem) and (prefers-reduced-motion: no-preference) {
+  .film-gate {
+    opacity: 0.26;
+    transform: scale(0.95);
+  }
+
+  .film-frame[data-active="true"] .film-gate {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* The caption sits beside the gate, and only for the active frame. */
+  .film-caption {
+    opacity: 0;
+    transition:
+      opacity 0.5s var(--ease-cine),
+      transform 0.5s var(--ease-cine);
+  }
+
+  .film-frame[data-active="true"] .film-caption {
+    opacity: 1;
+  }
+}
+
+/* The content above sinks into darkness as the film roll arrives. */
+.film-curtain {
+  background: linear-gradient(to bottom, var(--color-ink), transparent);
+}
+
+/* ==================================================================
+   THE OPENING STATEMENT
+   Three lines, each in its own mask, the last of them in italic.
+
+   The masks carry the leading. A serif at this size puts descenders
+   well below its line box and ascenders hard against the top of it, so
+   each mask is padded to clear both and the padding is taken back out
+   again with a negative margin: the lines sit tight, and nothing is
+   clipped as it rises into place. The alternative — crushed leading on
+   an overflow-hidden row — shaves the top off every capital.
+   ================================================================== */
+.hero-headline {
+  font-family: var(--font-display);
+  font-weight: 300;
+  /* Held a little under the old 10vw: the serif's wider fit means
+     "begins with" reaches further at the same size, and the third line
+     must never run into the gutter. */
+  font-size: clamp(2.7rem, 8.9vw, 8.5rem);
+  line-height: 1;
+  letter-spacing: -0.014em;
+}
+
+.hero-headline > span {
+  display: block;
+  overflow: hidden;
+  padding-block: 0.12em 0.22em;
+  margin-block: -0.11em -0.19em;
+}
+
+/* The accented line. Indented by the italic's own lean so the three
+   lines still share one optical left edge rather than one measured
+   one. */
+.hero-headline [data-accent] {
+  font-style: italic;
+  letter-spacing: 0.002em;
+  margin-left: -0.028em;
+}
+
+/* Hero backdrop: the photograph settles into view rather than snapping.
+   Pure CSS, so it needs no JavaScript, and the reduced-motion rule
+   above collapses it to its finished state. */
+@keyframes hero-settle {
+  from {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.hero-backdrop {
+  animation: hero-settle 1.8s var(--ease-cine) both;
+}
+
+/* ==================================================================
+   THE LIVING SKY
+   The hero photograph with weather in it — see HeroSky.tsx for the
+   clocks and for why none of this starts until the opening sequence
+   has handed over. This file only describes the layers.
+   ================================================================== */
+.sky {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  /* Keeps the screened cloud bank blending against the photograph it
+     belongs to, and nothing else on the page. */
+  isolation: isolate;
+}
+
+/* The photograph itself: the ŹPF monsoon sky, unchanged. */
+.sky-plate {
+  height: 100%;
+  width: 100%;
+  transform-origin: 50% 40%;
+  will-change: transform;
+}
+
+/* Everything in front of the photograph. This is what the pointer
+   moves; the photograph never does. */
+.sky-depth {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Those layers start at nothing, and only HeroSky raises them. So a
+   reduced-motion visitor, or anyone whose JavaScript never runs, gets
+   the still photograph and nothing added to it. */
+.sky-bank,
+.sky-glow {
+  position: absolute;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.sky-bank {
+  /* Enough slack that the bank can cross 9% of its own width without
+     its edge ever reaching the frame. */
+  inset: -20% -18%;
+  /* Light accumulates where the two cloud masses cross, which is what
+     a second bank of cloud actually does to a frame. The blend is on
+     this element rather than on a child: an ancestor at less than full
+     opacity would isolate it, and the layer would just sit on top. */
+  mix-blend-mode: screen;
+  transform-origin: 50% 45%;
+}
+
+/* With real cloud volumes in front of the photograph, the CSS bank has
+   nothing left to do — and its blur is the one thing in the hero that
+   can show an edge. See the note in HeroSky.tsx. */
+.sky[data-sky-3d] .sky-bank {
+  display: none;
+}
+
+.sky-bank-mirror {
+  height: 100%;
+  width: 100%;
+  /* Mirrored, so the same photograph never reads as a copy of itself.
+     A static transform on its own element, clear of the drift.
+
+     Scaled well past its own box on purpose: a transform is applied
+     to the *filtered* result, so enlarging it pushes the edge where
+     the blur below fades to nothing safely outside the frame. */
+  transform: scaleX(-1) scale(1.38);
+}
+
+@media (min-width: 48rem) {
+  .sky-bank-mirror {
+    /* Out of focus, because it is nearer. Desktop only — a
+       full-screen blur is not what a phone should spend a frame on. */
+    filter: blur(9px);
+  }
+}
+
+.sky-glow {
+  inset: -30%;
+  transform-origin: 50% 50%;
+}
+
+/* The WebGL flight, over the photograph and under the type. */
+.sky-flight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sky-flight canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ------------------------------------------------------------------
+   THE BIRDS (the fallback flock, for browsers without WebGL)
+   Small dark marks crossing the frame. Like the layers above, they
+   start at nothing and only HeroSky raises them, so a reduced-motion
+   visitor gets an empty sky rather than five birds frozen mid-air.
+   ------------------------------------------------------------------ */
+.bird {
+  position: absolute;
+  left: 0;
+  opacity: 0;
+  /* A silhouette, not a grey mark. The sky it crosses is itself dark,
+     so anything short of true black reads as haze rather than as a
+     bird. */
+  color: #040406;
+  will-change: transform;
+}
+
+.bird-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  /* Facing the way it is travelling. */
+  transform: scaleX(var(--face, 1));
+}
+
+.bird-wings {
+  /* The viewBox starts at (-12, -7), so the bird's body — user (0, 0) —
+     is 12 across and 7 down from the reference box's corner. The
+     wingbeat has to pivot there and not on the bounding box, or the
+     bird bobs every time it flaps. */
+  transform-box: view-box;
+  transform-origin: 12px 7px;
+}
+
+/* The sun somewhere behind the cloud. */
+.sky-glow--warm {
+  background: radial-gradient(
+    42% 34% at 38% 30%,
+    rgba(197, 154, 105, 0.5),
+    rgba(176, 128, 110, 0.17) 46%,
+    transparent 72%
+  );
+  mix-blend-mode: screen;
+}
+
+/* And the cold haze crossing underneath it. */
+.sky-glow--cool {
+  background: radial-gradient(
+    55% 42% at 68% 58%,
+    rgba(124, 140, 160, 0.3),
+    rgba(84, 95, 112, 0.1) 52%,
+    transparent 78%
+  );
+}
+
+/* ------------------------------------------------------------------
+   Pinned-only layout for the film roll.
+   FilmRoll sets data-mode="pinned" on the section when the scroll
+   sequence actually initialises — which is desktop, with a fine pointer
+   and motion allowed. Keying the layout off that rather than off a
+   breakpoint keeps the static fallback correct for reduced-motion
+   visitors on a wide screen, who get no pinning and must still be able
+   to scroll through every frame.
+   ------------------------------------------------------------------ */
+.film-pinned-only {
+  display: none;
+}
+
+[data-mode="pinned"] .film-pinned-only {
+  display: block;
+}
+
+[data-mode="pinned"] .film-stage {
+  height: 100vh;
+  overflow: hidden;
+}
+
+[data-mode="pinned"] .film-label {
+  position: absolute;
+  inset-inline: 0;
+  top: 7rem;
+  z-index: 20;
+  padding-top: 0;
+}
+
+[data-mode="pinned"] .film-roll-wrap {
+  position: absolute;
+  inset: 0;
+  margin-top: 0;
+  align-items: flex-start;
+}
+
+[data-mode="pinned"] .film-caption {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  width: 14rem;
+  margin-top: 0;
+  /* Clear the right-hand sprocket rail. */
+  padding-left: 4rem;
+  transform: translateY(-50%) translateX(-12px);
+}
+
+[data-mode="pinned"] .film-frame[data-active="true"] .film-caption {
+  transform: translateY(-50%) translateX(0);
+}
+
+/* The gate padding is written by FilmRoll from the measured frame
+   height; this is only the value used for the instant before the
+   script runs. In the static fallback there is no gate, so no padding. */
+[data-mode="pinned"] .film-gate-track {
+  padding-block: calc(50vh - 14rem);
+}
+
+/* The strip translates for the whole pinned sequence — keep it on its
+   own compositor layer so the move never triggers a repaint. */
+[data-mode="pinned"] .film-strip {
+  will-change: transform;
+}
+
+/* ==================================================================
+   THE OPENING SEQUENCE — camera, flash, film
+   ------------------------------------------------------------------
+   The overlay is in the markup from the first byte but is NOT
+   displayed. A blocking script in the head arms it by setting
+   data-intro on <html> — see src/lib/intro.ts. That order is the whole
+   safety story: if the script never runs, if storage is unavailable, or
+   if React never hydrates, these rules never match and the page is
+   simply the website. Nobody can be held on a screen that cannot
+   proceed.
+   ================================================================== */
+.intro-root {
+  display: none;
+}
+
+html[data-intro="armed"] .intro-root {
+  display: block;
+}
+
+/* Gone for good once the website has taken over, whatever the
+   attribute above is doing. */
+.intro-root[data-phase="revealed"] {
+  display: none;
+}
+
+/* The page is held still only while the lock attribute is present —
+   which is removed the moment the hero takes over, half a second
+   before the overlay has finished dissolving. */
+html[data-intro-lock] body {
+  overflow: hidden;
+}
+
+/* Reserve the scrollbar's gutter so taking the scroll away, and giving
+   it back, never shifts the layout sideways by its width. */
+html {
+  scrollbar-gutter: stable;
+}
+
+.intro-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  background-color: #070707;
+}
+
+/* Atmosphere: one warm pool where the camera stands, and a cold
+   vignette at the edges, so the body reads as lit rather than placed. */
+.intro-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      54% 44% at 50% 47%,
+      rgba(197, 154, 105, 0.13),
+      transparent 72%
+    ),
+    radial-gradient(125% 85% at 50% 50%, transparent 34%, rgba(0, 0, 0, 0.8) 100%);
+}
+
+.intro-grain {
+  position: absolute;
+  z-index: 8;
+}
+
+/* ------------------------------------------------------------------
+   Opening titles. Restrained: the camera is the frame, not the type.
+   ------------------------------------------------------------------ */
+.intro-copy {
+  position: absolute;
+  inset-inline: 0;
+  top: clamp(1.5rem, 7vh, 5rem);
+  z-index: 4;
+  padding-inline: var(--gutter);
+  text-align: center;
+}
+
+.intro-tagline {
+  font-size: clamp(1.1rem, 2.6vw, 1.9rem);
+  font-style: italic;
+  letter-spacing: -0.01em;
+  opacity: 0.92;
+}
+
+/* ------------------------------------------------------------------
+   THE REEL
+   One column: the camera, and the film hanging out of its slot. The
+   reel translates, the film scales inside it from its own top edge, so
+   however far the sequence pushes in, the strip stays joined to the
+   slot it came out of. CameraIntro measures all of it.
+   ------------------------------------------------------------------ */
+.intro-reel {
+  /* The one unit the camera and the film are both built from.
+     Width-led, with a height ceiling so a short or landscape phone
+     scales the whole object down instead of overflowing.
+
+     Raised from a 5.6px ceiling: the camera is the subject of this
+     screen, and at the old scale it sat in the middle of the frame at
+     under 40% of its width — present, but not the thing being looked
+     at. The film strip measures itself off the same unit, and the
+     push-in is derived from the frame it ends up with, so the whole
+     sequence follows this number without anything else changing. */
+  --u: min(clamp(2.7px, 0.88vw, 8px), 0.78vh);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: calc(var(--u) * 100);
+}
+
+/* The camera stays above the film, so the strip's top edge is hidden
+   behind the body and the film appears to come from inside it. */
+.intro-cam {
+  position: relative;
+  z-index: 2;
+}
+
+.intro-film {
+  position: absolute;
+  z-index: 1;
+  /* Tucked a little way up behind the body, at the slot. */
+  top: calc(100% - var(--u) * 2.4);
+  left: 50%;
+  width: calc(var(--u) * 72);
+  /* Nothing is out until the sequence feeds it out. */
+  clip-path: inset(0% 0% 100% 0%);
+  will-change: transform, clip-path;
+}
+
+/* The strip itself is the film roll's, at the intro's scale: same
+   perforation drawing, same pitch logic, one implementation. */
+.intro-strip {
+  --perf-pitch: calc(var(--u) * 5.4);
+  --perf-hole: calc(var(--u) * 2.4);
+  --rail: calc(var(--u) * 5.6);
+  width: 100%;
+  /* Lighter than the stage behind it, and the perforations are punched
+     *through* it to that darkness rather than painted on in white. The
+     film roll further down the page is lit from behind, where the
+     reverse is true; this one is lit from the front. */
+  background-color: #17171a;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(5, 5, 6, 0.96) 0 var(--perf-hole),
+      transparent var(--perf-hole) var(--perf-pitch)
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(5, 5, 6, 0.96) 0 var(--perf-hole),
+      transparent var(--perf-hole) var(--perf-pitch)
+    );
+  background-size: calc(var(--u) * 2.3) 100%, calc(var(--u) * 2.3) 100%;
+  background-position: calc(var(--u) * 1.65) 0, calc(100% - var(--u) * 1.65) 0;
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.07),
+    inset -1px 0 0 rgba(255, 255, 255, 0.07),
+    0 calc(var(--u) * 2) calc(var(--u) * 6) rgba(0, 0, 0, 0.6);
+}
+
+.intro-strip-track {
+  margin: 0;
+  padding: calc(var(--u) * 3) 0;
+  list-style: none;
+}
+
+/* Every frame but the one in the gate sits back. */
+.intro-frame {
+  opacity: 0.3;
+  transition: opacity 0.5s var(--ease-cine);
+}
+
+.intro-frame:has([data-active="true"]) {
+  opacity: 1;
+}
+
+.intro-frame + .intro-frame {
+  margin-top: calc(var(--u) * 4);
+}
+
+.intro-cell {
+  display: block;
+  transform-origin: 50% 50%;
+}
+
+.intro-cell-edge {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-inline: calc(var(--u) * 0.4);
+  padding-bottom: calc(var(--u) * 1);
+  font-size: calc(var(--u) * 1.75);
+  line-height: 1;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(146, 144, 140, 0.65);
+}
+
+.intro-cell-gate {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+/* A restrained warm lift on the frame in the gate, as a print would
+   have coming off warm stock. */
+.intro-cell-gate::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    168deg,
+    rgba(197, 154, 105, 0.16),
+    transparent 46%,
+    rgba(8, 8, 8, 0.34)
+  );
+  opacity: 0;
+  transition: opacity 0.6s var(--ease-cine);
+}
+
+[data-active="true"] .intro-cell-gate::after {
+  opacity: 1;
+}
+
+.intro-cell-label {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.4);
+  padding: calc(var(--u) * 1.6) calc(var(--u) * 0.4) calc(var(--u) * 0.4);
+  font-size: calc(var(--u) * 2.1);
+  line-height: 1;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-bone);
+}
+
+.intro-cell-index {
+  color: var(--color-signal);
+}
+
+.intro-cell-dash {
+  width: calc(var(--u) * 3);
+  height: 1px;
+  background-color: var(--color-rule);
+}
+
+/* ------------------------------------------------------------------
+   THE HERO, WAITING INSIDE THE FINAL FRAME
+   Clipped to the last frame's measured rectangle, then opened to the
+   full viewport. The photograph, crop and scrim are the hero's own, so
+   what expands here and what is underneath are the same image — the
+   dissolve at the end is invisible and only the headline arrives.
+   ------------------------------------------------------------------ */
+.intro-hero {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  opacity: 0;
+  clip-path: inset(50% 50%);
+}
+
+/* ------------------------------------------------------------------
+   THE LIGHT
+   ------------------------------------------------------------------ */
+.intro-leak {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  z-index: 4;
+  width: 55%;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    104deg,
+    transparent,
+    rgba(197, 154, 105, 0.26) 44%,
+    rgba(242, 240, 235, 0.13) 58%,
+    transparent
+  );
+}
+
+/* One flash, centred on the lens, over in under half a second. The
+   gradient's centre is written by the sequence from the lens's real
+   position, and is also the transform origin — so it expands out of the
+   glass rather than out of the middle of the screen. */
+.intro-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--fx, 50%) var(--fy, 50%),
+    #fffdf8 0%,
+    rgba(255, 250, 240, 0.95) 13%,
+    rgba(255, 243, 226, 0.52) 36%,
+    rgba(255, 236, 208, 0) 66%
+  );
+}
+
+/* A brief veil, so the camera is genuinely lost in the light for a
+   moment. Deliberately short of white and never repeated. */
+.intro-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  opacity: 0;
+  pointer-events: none;
+  background-color: #fffcf6;
+}
+
+/* ------------------------------------------------------------------
+   FRAMING MARKS, COUNTER, SKIP
+   ------------------------------------------------------------------ */
+.intro-marks {
+  position: absolute;
+  inset: clamp(0.9rem, 2.4vh, 1.8rem) var(--gutter);
+  z-index: 6;
+  pointer-events: none;
+}
+
+.intro-marks span {
+  position: absolute;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.intro-marks span:nth-child(1) {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+.intro-marks span:nth-child(2) {
+  top: 0;
+  right: 0;
+  border-left: 0;
+  border-bottom: 0;
+}
+.intro-marks span:nth-child(3) {
+  bottom: 0;
+  left: 0;
+  border-right: 0;
+  border-top: 0;
+}
+.intro-marks span:nth-child(4) {
+  bottom: 0;
+  right: 0;
+  border-left: 0;
+  border-top: 0;
+}
+
+.intro-counter {
+  position: absolute;
+  bottom: clamp(1.4rem, 4vh, 2.6rem);
+  left: var(--gutter);
+  z-index: 6;
+  font-size: 0.6875rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-bone);
+  text-shadow: 0 1px 6px rgba(8, 8, 8, 0.95);
+  opacity: 0;
+  transition: opacity 0.6s var(--ease-cine);
+}
+
+.intro-root[data-phase="film"] .intro-counter {
+  opacity: 1;
+}
+
+.intro-skip {
+  position: absolute;
+  top: clamp(1rem, 2.6vh, 1.9rem);
+  right: var(--gutter);
+  z-index: 9;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.25rem;
+  color: var(--color-ash);
+  /* The film travels underneath this, so it needs to hold up over a
+     bright frame as well as over the black it starts on. */
+  text-shadow: 0 1px 6px rgba(8, 8, 8, 0.95), 0 0 2px rgba(8, 8, 8, 0.9);
+  transition: color 0.4s var(--ease-cine);
+}
+
+.intro-skip:hover,
+.intro-skip:focus-visible {
+  color: var(--color-bone);
+}
+
+/* ==================================================================
+   THE CAMERA
+   A 35mm single-lens reflex, drawn in SVG — see RetroCamera.tsx for
+   the drawing and for why it is drawn rather than photographed. No
+   asset to download, no asset to fail, sharp at any size.
+
+   This file owns three things only: the box the camera occupies, the
+   affordances layered over the shutter release, and the two pieces of
+   continuous motion that keep the metal alive. Everything else is in
+   the drawing.
+
+   Every dimension is a multiple of --u from the reel above, so the
+   camera scales as one physical object and the film slot stays where
+   the film expects to find it.
+   ================================================================== */
+.cam {
+  position: relative;
+  display: block;
+  width: calc(var(--u) * 100);
+  height: calc(var(--u) * 62);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  appearance: none;
+  transition: transform 0.6s var(--ease-cine);
+}
+
+/* The drawing. Offset by the room the prism needs above it and the
+   shadow needs below it, so the 0–100 by 0–62 body inside the viewBox
+   lands exactly on the button's own box. */
+.cam-art {
+  position: absolute;
+  left: calc(var(--u) * -10);
+  top: calc(var(--u) * -14);
+  width: calc(var(--u) * 120);
+  height: calc(var(--u) * 90);
+  overflow: visible;
+  /* The ground shadow and the prism are outside the button's box; the
+     press must still be anywhere on the camera, not on the shadow. */
+  pointer-events: none;
+}
+
+/* Hover is a pointer's affordance, not a finger's. A touch device
+   keeps :hover on whatever it last tapped, so without this gate the
+   camera would stay lifted and ringed for the whole sequence. The
+   release's own pulse is what invites a tap, and it needs no pointer. */
+@media (hover: hover) and (pointer: fine) {
+  .cam:hover:not(:disabled) {
+    transform: translateY(calc(var(--u) * -0.6));
+  }
+}
+
+.cam:disabled {
+  cursor: inherit;
+}
+
+/* ------------------------------------------------------------------
+   SURFACE
+   The grain the drawing lays over the whole body. Overlay rather than
+   normal, so it modulates what is underneath instead of greying it.
+   ------------------------------------------------------------------ */
+.cam-grain {
+  mix-blend-mode: overlay;
+  /* Enough to break every surface up, far short of looking like
+     noise. Above about 0.2 it stops reading as a material and starts
+     reading as a bad signal. */
+  opacity: 0.15;
+}
+
+/* ------------------------------------------------------------------
+   ENGRAVING
+   The camera wears the site's own typefaces: the maker's plate in the
+   display face, the specifications in the one screenplays are set in.
+   Both are cut into the surface — a dark edge below, a light one
+   above — rather than printed on top of it.
+   ------------------------------------------------------------------ */
+.cam-brand {
+  font-family: var(--font-display);
+  font-size: 5.6px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  fill: #cfccc4;
+  fill-opacity: 0.72;
+  paint-order: stroke fill;
+  stroke: #000000;
+  stroke-opacity: 0.85;
+  stroke-width: 0.5px;
+}
+
+.cam-badge,
+.cam-counter {
+  font-family: var(--font-slate);
+  font-size: 2.3px;
+  letter-spacing: 0.16em;
+  fill: #8e8c88;
+  fill-opacity: 0.8;
+}
+
+.cam-counter {
+  font-size: 2.5px;
+  fill: #b9b6ae;
+  fill-opacity: 0.6;
+}
+
+/* ------------------------------------------------------------------
+   THE CAMERA IS ALIVE, BARELY
+   Two things move while it waits, and neither of them moves the
+   camera: the key light travels the length of the top plate, and the
+   coating bloom in the glass breathes. Together they read as a lit
+   object in a room rather than a picture of one — which is what the
+   brief for "alive" is, as against spinning or floating.
+
+   The reduced-motion rule in the base layer collapses both.
+   ------------------------------------------------------------------ */
+@keyframes cam-sheen {
+  0% {
+    transform: skewX(-22deg) translateX(0);
+    opacity: 0;
+  }
+  12%,
+  62% {
+    opacity: 1;
+  }
+  100% {
+    transform: skewX(-22deg) translateX(190px);
+    opacity: 0;
+  }
+}
+
+.cam-sheen {
+  animation: cam-sheen 13s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+@keyframes cam-coat {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: translate(0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(0.5px, -0.35px);
+  }
+}
+
+.cam-coat {
+  transform-box: fill-box;
+  animation: cam-coat 9s var(--ease-cine) infinite;
+}
+
+/* ------------------------------------------------------------------
+   THE IRIS
+   Each leaf is a half-plane covering the top of the element, rotated
+   about the optical axis and pushed out along its own axis. Six of
+   them sixty degrees apart meet in the middle when they are drawn in
+   and leave a clean hexagon when they are pushed out — which is what
+   a real iris does, and what a ring of wedges never looks like.
+
+   transform-box: view-box puts the origin at the top-left corner of
+   the viewBox, so the optical axis — user (50, 37.5) in a viewBox
+   starting at (-10, -14) — is 60, 51.5 from it. Stated here rather
+   than in the drawing because this is the only rule that needs it.
+   ------------------------------------------------------------------ */
+.cam-blades {
+  --blade: 1;
+}
+
+.cam-blade {
+  transform-box: view-box;
+  transform-origin: 60px 51.5px;
+  transform: rotate(var(--rot)) translateY(calc(var(--blade) * -6.9px));
+}
+
+/* ------------------------------------------------------------------
+   THE AFFORDANCES
+   Layered over the shutter release at its position in camera units: a
+   ring that breathes while the camera is waiting, and a collar that
+   answers a pointer or the keyboard. The ring is the only invitation
+   that works on touch, where there is no hover to discover.
+   ------------------------------------------------------------------ */
+.cam-press,
+.cam-press-collar {
+  position: absolute;
+  /* Centred on the release at user (20, 6.8). */
+  left: calc(var(--u) * 20);
+  top: calc(var(--u) * 6.8);
+  border-radius: 50%;
+  translate: -50% -50%;
+  pointer-events: none;
+}
+
+@keyframes cam-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+
+.cam-press {
+  width: calc(var(--u) * 11.2);
+  height: calc(var(--u) * 11.2);
+  border: 1px solid rgba(229, 27, 43, 0.7);
+  animation: cam-pulse 2.8s var(--ease-cine) infinite;
+}
+
+/* The moment the sequence starts, the invitation stops. */
+.intro-root:not([data-phase="idle"]) .cam-press {
+  animation: none;
+  opacity: 0;
+}
+
+.cam-press-collar {
+  width: calc(var(--u) * 15);
+  height: calc(var(--u) * 15);
+  border: 1px solid rgba(229, 27, 43, 0.45);
+  opacity: 0;
+  transform: scale(0.9);
+  transition:
+    opacity 0.45s var(--ease-cine),
+    transform 0.45s var(--ease-cine);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cam:hover:not(:disabled) .cam-press-collar {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.cam:focus-visible .cam-press-collar {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Once the shutter has been pressed there is nothing left to invite. */
+.intro-root:not([data-phase="idle"]) .cam .cam-press-collar {
+  opacity: 0;
+}
+
+/* ------------------------------------------------------------------
+   The invitation, under the camera and part of the same control.
+   ------------------------------------------------------------------ */
+.cam-cue {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + var(--u) * 9);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  translate: -50% 0;
+  white-space: nowrap;
+  font-family: var(--font-slate);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-amber);
+}
+
+.cam-cue-dot {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 50%;
+  background-color: var(--color-signal);
+}
+
+@media (min-width: 48rem) {
+  .cam-cue {
+    font-size: 0.75rem;
+  }
+}
