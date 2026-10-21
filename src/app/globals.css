@@ -425,6 +425,52 @@
   animation: hero-settle 1.8s var(--ease-cine) both;
 }
 
+/* ==================================================================
+   SCENE 01 — THE OPENING STAGE
+   ------------------------------------------------------------------
+   The hero is not a block that scrolls past. It is a frame that holds
+   the window while the shot resolves: the sky pushes in, the type
+   rises out, and the gate closes on the photograph. Everything in it
+   is scrubbed from the scroll, so it plays backwards exactly as it
+   plays forwards.
+
+   The stage is the scroll distance. The frame is what the visitor
+   sees, stuck to the top of the window for as long as the stage has
+   room to give it.
+
+   `--hero-travel` is that room, and it is the only extra scrolling
+   the opening costs. It is zero until <HeroStage /> says otherwise —
+   so a visitor with no JavaScript, or one who asked for less motion,
+   is given no distance to scroll through a shot that is not playing.
+   See src/components/sections/HeroStage.tsx for what writes it, and
+   for the beats it is spent on.
+   ================================================================== */
+.hero-stage {
+  position: relative;
+  --hero-travel: 0px;
+}
+
+.hero-frame {
+  position: sticky;
+  top: 0;
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+  justify-content: flex-end;
+  /* On the frame rather than the stage: `overflow: hidden` on an
+     ancestor is what silently stops `position: sticky` working. */
+  overflow: hidden;
+}
+
+.hero-stage[data-stage="on"] {
+  height: calc(100svh + var(--hero-travel));
+}
+
+.hero-stage[data-stage="on"] .hero-frame {
+  height: 100svh;
+  min-height: 0;
+}
+
 /* A hairline that draws itself in when revealed. */
 @utility rule {
   height: 1px;

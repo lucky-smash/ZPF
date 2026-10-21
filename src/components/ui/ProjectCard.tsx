@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Figure } from "@/components/ui/Figure";
+import { Parallax } from "@/components/ui/Parallax";
 import type { Project } from "@/data";
 
 const RATIO: Record<Project["layout"], string> = {
@@ -37,14 +38,24 @@ export function ProjectCard({ project, index, className = "" }: ProjectCardProps
         data-cursor-label="VIEW"
         className="group block"
       >
+        {/* The still drifts against the scroll inside its own frame,
+            which is what gives a page of stationary rectangles the
+            feeling of a camera moving past them. The drift is on the
+            frame and the hover is on the photograph inside it, so the
+            two never write to the same transform. The scale is the
+            overfill the drift needs — without it the frame would show
+            its own edge at the top or the bottom of the travel. */}
         <div className="overflow-hidden bg-charcoal">
-          <Figure
-            asset={project.image}
-            ratio={RATIO[project.layout]}
-            sizes={SIZES[project.layout]}
-            imageClassName="transition-transform duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
-            position={project.layout === "wide" ? "50% 42%" : "center"}
-          />
+          <Parallax distance={9}>
+            <Figure
+              asset={project.image}
+              ratio={RATIO[project.layout]}
+              sizes={SIZES[project.layout]}
+              className="scale-[1.07]"
+              imageClassName="transition-transform duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
+              position={project.layout === "wide" ? "50% 42%" : "center"}
+            />
+          </Parallax>
         </div>
 
         <div className="mt-5 flex items-baseline gap-4">

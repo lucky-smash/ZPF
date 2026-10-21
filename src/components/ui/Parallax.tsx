@@ -49,16 +49,30 @@ export function Parallax({ children, className, distance = 12 }: ParallaxProps) 
                as stepping on a trackpad; easing into the value smooths
                it without any perceptible lag. */
             scrub: 0.5,
+            /* Promoted only while it is on screen, which is exactly
+               what this trigger's range already means. Declared in the
+               markup instead, the hint would ride on every parallax
+               frame on the page for the life of the page — a dozen
+               compositor layers, each holding a full-size photograph,
+               almost all of them nowhere near the window. */
+            onToggle: (self) => {
+              if (self.isActive) el.style.willChange = "transform";
+              else el.style.removeProperty("will-change");
+            },
           },
         },
       );
+
+      return () => {
+        el.style.removeProperty("will-change");
+      };
     });
 
     return () => mm.revert();
   }, [distance]);
 
   return (
-    <div ref={ref} className={className} style={{ willChange: "transform" }}>
+    <div ref={ref} className={className}>
       {children}
     </div>
   );

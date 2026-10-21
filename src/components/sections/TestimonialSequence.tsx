@@ -53,7 +53,12 @@ export function TestimonialSequence({ items }: { items: Testimonial[] }) {
     <div>
       <ul
         ref={trackRef}
-        className="flex snap-x snap-mandatory overflow-x-auto [overscroll-behavior-x:contain] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        /* Centred, not stretched. The track reserves the height of the
+           longest quote — six of them share one frame — and a short one
+           left at the top of that box strands all of the difference
+           underneath it as a hole. Centred, the same space reads as the
+           frame the quote is set in. */
+        className="flex snap-x snap-mandatory items-center overflow-x-auto [overscroll-behavior-x:contain] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {items.map((item) => (
           <li
