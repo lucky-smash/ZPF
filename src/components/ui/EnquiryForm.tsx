@@ -139,14 +139,11 @@ export function EnquiryForm() {
     }
   }
 
-  const fieldClass =
-    "w-full border-b border-rule bg-transparent py-3 text-base text-bone transition-colors duration-300 placeholder:text-ash/60 focus:border-bone focus:outline-none aria-[invalid=true]:border-signal";
-
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-8">
-      <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-        <div>
-          <label htmlFor={`${formId}-name`} className="meta block text-ash">
+    <form onSubmit={onSubmit} noValidate className="enquiry-form">
+      <div className="enquiry-grid">
+        <div className="field">
+          <label htmlFor={`${formId}-name`} className="meta field-label">
             Name <span className="text-signal">*</span>
           </label>
           <input
@@ -157,17 +154,17 @@ export function EnquiryForm() {
             autoComplete="name"
             aria-invalid={Boolean(errors.name)}
             aria-describedby={errors.name ? `${formId}-name-error` : undefined}
-            className={`${fieldClass} mt-2`}
+            className="field-control"
           />
           {errors.name ? (
-            <p id={`${formId}-name-error`} className="mt-2 text-xs text-signal">
+            <p id={`${formId}-name-error`} className="field-error">
               {errors.name}
             </p>
           ) : null}
         </div>
 
-        <div>
-          <label htmlFor={`${formId}-email`} className="meta block text-ash">
+        <div className="field">
+          <label htmlFor={`${formId}-email`} className="meta field-label">
             Email <span className="text-signal">*</span>
           </label>
           <input
@@ -179,17 +176,17 @@ export function EnquiryForm() {
             autoComplete="email"
             aria-invalid={Boolean(errors.email)}
             aria-describedby={errors.email ? `${formId}-email-error` : undefined}
-            className={`${fieldClass} mt-2`}
+            className="field-control"
           />
           {errors.email ? (
-            <p id={`${formId}-email-error`} className="mt-2 text-xs text-signal">
+            <p id={`${formId}-email-error`} className="field-error">
               {errors.email}
             </p>
           ) : null}
         </div>
 
-        <div>
-          <label htmlFor={`${formId}-company`} className="meta block text-ash">
+        <div className="field">
+          <label htmlFor={`${formId}-company`} className="meta field-label">
             Company
           </label>
           <input
@@ -198,12 +195,12 @@ export function EnquiryForm() {
             value={fields.company}
             onChange={set("company")}
             autoComplete="organization"
-            className={`${fieldClass} mt-2`}
+            className="field-control"
           />
         </div>
 
-        <div>
-          <label htmlFor={`${formId}-projectType`} className="meta block text-ash">
+        <div className="field">
+          <label htmlFor={`${formId}-projectType`} className="meta field-label">
             Project type
           </label>
           <select
@@ -211,7 +208,7 @@ export function EnquiryForm() {
             name="projectType"
             value={fields.projectType}
             onChange={set("projectType")}
-            className={`${fieldClass} mt-2 [&>option]:bg-charcoal`}
+            className="field-control"
           >
             <option value="">Select a category</option>
             {services.map((service) => (
@@ -223,8 +220,8 @@ export function EnquiryForm() {
           </select>
         </div>
 
-        <div className="sm:col-span-2">
-          <label htmlFor={`${formId}-timeline`} className="meta block text-ash">
+        <div className="field field-wide">
+          <label htmlFor={`${formId}-timeline`} className="meta field-label">
             Approximate timeline
           </label>
           <select
@@ -232,7 +229,7 @@ export function EnquiryForm() {
             name="timeline"
             value={fields.timeline}
             onChange={set("timeline")}
-            className={`${fieldClass} mt-2 [&>option]:bg-charcoal`}
+            className="field-control"
           >
             <option value="">Select a timeline</option>
             {TIMELINES.map((option) => (
@@ -244,8 +241,8 @@ export function EnquiryForm() {
         </div>
       </div>
 
-      <div>
-        <label htmlFor={`${formId}-details`} className="meta block text-ash">
+      <div className="field">
+        <label htmlFor={`${formId}-details`} className="meta field-label">
           About the project <span className="text-signal">*</span>
         </label>
         <textarea
@@ -258,16 +255,16 @@ export function EnquiryForm() {
           aria-describedby={
             errors.details ? `${formId}-details-error` : undefined
           }
-          className={`${fieldClass} mt-2 resize-y`}
+          className="field-control"
         />
         {errors.details ? (
-          <p id={`${formId}-details-error`} className="mt-2 text-xs text-signal">
+          <p id={`${formId}-details-error`} className="field-error">
             {errors.details}
           </p>
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="enquiry-actions">
         <button
           type="submit"
           disabled={status.state === "sending"}
@@ -285,7 +282,7 @@ export function EnquiryForm() {
           </span>
         </button>
 
-        <p className="max-w-xs text-xs leading-relaxed text-ash">
+        <p className="enquiry-note">
           {ENDPOINT
             ? "Your enquiry is sent straight to the ŹPF team."
             : "This opens your email app with the message ready to send."}
@@ -293,9 +290,9 @@ export function EnquiryForm() {
       </div>
 
       {/* Status is announced, and never overstated. */}
-      <div role="status" aria-live="polite">
+      <div role="status" aria-live="polite" className="enquiry-status">
         {status.state === "composed" ? (
-          <p className="border-l-2 border-signal pl-4 text-sm leading-relaxed text-ash">
+          <p>
             <span className="text-bone">Your message is ready.</span> Your
             email app should have opened with it composed — nothing has been
             sent yet. If nothing opened, write to{" "}
@@ -307,14 +304,14 @@ export function EnquiryForm() {
         ) : null}
 
         {status.state === "sent" ? (
-          <p className="border-l-2 border-signal pl-4 text-sm leading-relaxed text-ash">
+          <p>
             <span className="text-bone">Thank you.</span> Your enquiry has been
             received and we will be in touch.
           </p>
         ) : null}
 
         {status.state === "error" ? (
-          <p className="border-l-2 border-signal pl-4 text-sm leading-relaxed text-ash">
+          <p>
             <span className="text-bone">That did not send.</span>{" "}
             {status.message} Please email{" "}
             <a href={`mailto:${site.email}`} className="link-underline text-bone">

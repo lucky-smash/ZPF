@@ -1053,6 +1053,277 @@
 }
 
 /* ==================================================================
+   CONTACT — THE RAIL AND THE ENQUIRY FORM
+   ------------------------------------------------------------------
+   The last section of the page is the one a visitor is asked to act
+   in, and it was the one section whose spacing was written field by
+   field: the rail's rows carried their own padding, the form's
+   heading a margin nothing else used, the fields a stack of margin
+   utilities, and a native select brought its own box metrics along —
+   which is why its underline sat five pixels above the input beside
+   it, in the same row.
+
+   So the rhythm is stated here, once, as five lengths and two rules,
+   and both columns are built out of them. The numbers are the ones
+   the section already used; what has changed is that there is now a
+   single place to change them, and that the two columns answer to the
+   same ones.
+
+   HOW THE RHYTHM GOES
+
+     A rule always has --contact-row-pad of air above and below it, so
+     the rail reads as one even ladder from the heading down.
+
+     Both columns leave the same gap under their heading rule, so the
+     phone number on the left and the first field label on the right
+     begin together rather than fourteen pixels apart.
+
+     A field is label → --contact-label-gap → control →
+     --contact-control-pad → its underline, and one field is exactly
+     like another: an input, a select and the textarea are the same
+     box, because they are given the same line box rather than being
+     left to the browser's idea of each.
+
+   What is deliberately NOT done here is forcing every line in the
+   section onto one grid. The rail's rules and the form's underlines
+   are different things at different pitches; they are each even
+   within their own column, and that is what reads as finished.
+   ================================================================== */
+@layer base {
+  :root {
+    /* The air a rule keeps on each side of itself, and the gap the
+       column heading leaves under its own rule. One value: the first
+       row of a column begins the same distance below the heading as
+       every later row begins below the rule above it. */
+    --contact-row-pad: 1.25rem;
+    --contact-head-gap: var(--contact-row-pad);
+
+    /* Between one field and the next, and between the blocks of the
+       form — the grid, the description, the actions, the status. */
+    --contact-field-gap: 2rem;
+
+    /* Inside a field: label to control, and control to underline. */
+    --contact-label-gap: 0.5rem;
+    --contact-control-pad: 0.75rem;
+
+    /* Two weights of line, and the difference is meaning rather than
+       taste: a divider separates things that are written down, and an
+       underline is the edge of something a visitor can type into. */
+    --contact-divider: var(--color-rule-soft);
+    --contact-field-line: var(--color-rule);
+  }
+}
+
+@layer components {
+  /* ---- THE RAIL ------------------------------------------------- */
+
+  /* The heading a column opens with. Both columns use it, so the two
+     rules are drawn at the same weight and leave the same gap. */
+  .contact-head {
+    padding-bottom: var(--contact-row-pad);
+    border-bottom: 1px solid var(--contact-divider);
+    margin-bottom: var(--contact-head-gap);
+    color: var(--color-ash);
+  }
+
+  /* One route: a number or an address, and the way to reach it.
+     A grid rather than margins on the parts, so the WhatsApp labels
+     sit on one right edge however long the number beside them is, and
+     the row keeps its height when it holds only one thing. */
+  .contact-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    /* The floor, not the height: every row is the same whatever is in
+       it, and a long address on a narrow screen still wraps rather
+       than being clipped to fit. */
+    min-height: calc(1.75rem + var(--contact-row-pad) * 2);
+    padding-block: var(--contact-row-pad);
+    border-bottom: 1px solid var(--contact-divider);
+  }
+
+  /* The last row carries no rule — the column has ended, and a line
+     under it would be a line to nothing — but it keeps the padding,
+     so the ladder's spacing does not change at the foot. */
+  .contact-row:last-of-type {
+    border-bottom: 0;
+  }
+
+  /* The social links, side by side on their own baseline. */
+  .contact-row-social {
+    grid-template-columns: auto auto;
+    justify-content: start;
+    gap: 2rem;
+  }
+
+  /* Where the company is, one full step below the links: the same
+     distance a row's text sits below the text of the row above it. */
+  .contact-note {
+    margin-top: calc(var(--contact-head-gap) + var(--contact-row-pad));
+    font-size: 0.875rem;
+    line-height: 1.7;
+    color: var(--color-ash);
+  }
+
+  /* ---- THE FORM ------------------------------------------------- */
+
+  /* The blocks carry the gap rather than the form, so the status
+     region — which is in the markup from the first render, and empty
+     until there is something to say — adds nothing to the foot of the
+     form while it is empty. */
+  .enquiry-form > * + * {
+    margin-top: var(--contact-field-gap);
+  }
+
+  .enquiry-form > [role="status"] {
+    margin-top: 0;
+  }
+
+  .enquiry-form > [role="status"] > * {
+    margin-top: var(--contact-field-gap);
+  }
+
+  /* Name and email, company and type: two columns of equal width, so
+     the four underlines fall on two lines. One column until there is
+     room, which is sooner than the page's own breakpoint — these are
+     short fields. */
+  .enquiry-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--contact-field-gap);
+  }
+
+  @media (min-width: 40rem) {
+    .enquiry-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    /* The timeline is one field across both columns. */
+    .field-wide {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* min-width, because a grid item's default minimum is its content:
+     without it a long option in a select pushes the column wider than
+     the page and the whole section scrolls sideways. */
+  .field {
+    min-width: 0;
+  }
+
+  .field-label {
+    display: block;
+    margin-bottom: var(--contact-label-gap);
+    color: var(--color-ash);
+  }
+
+  /* One control, whatever it is made of.
+
+     `display: block` and an explicit `line-height` are the two lines
+     that matter. A control is inline by default, so it sits on a text
+     baseline and leaves the descender space of a line nobody can see
+     underneath it — which is where the dead space under the textarea
+     came from. And a select left to its own metrics is five pixels
+     shorter than an input: same padding, different line box, and two
+     underlines in one row that do not meet. */
+  .field-control {
+    display: block;
+    width: 100%;
+    padding-block: var(--contact-control-pad);
+    border: 0;
+    border-bottom: 1px solid var(--contact-field-line);
+    border-radius: 0;
+    background-color: transparent;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--color-bone);
+    transition: border-color 0.3s var(--ease-gate);
+  }
+
+  .field-control::placeholder {
+    color: color-mix(in srgb, var(--color-ash) 60%, transparent);
+  }
+
+  .field-control:focus {
+    outline: none;
+    border-bottom-color: var(--color-bone);
+  }
+
+  .field-control[aria-invalid="true"] {
+    border-bottom-color: var(--color-signal);
+  }
+
+  /* The caret is drawn here rather than left to the browser, because
+     the browser's is the only part of this form that would not be the
+     site's: appearance:none takes the native control's box with it,
+     which is what lets a select be the same height as an input. */
+  select.field-control {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-right: 1.75rem;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%23a39a8f' stroke-width='1.4'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.25rem center;
+    background-size: 0.7rem 0.47rem;
+  }
+
+  /* The open list is the one thing the platform draws. Give it the
+     site's own surface so it is not a white sheet over a black page. */
+  .field-control option {
+    background-color: var(--color-charcoal);
+    color: var(--color-bone);
+  }
+
+  textarea.field-control {
+    /* Four lines, and the room to grow — stated as a minimum rather
+       than a height, so the box cannot be shorter than the rows
+       attribute says and cannot fight a visitor who drags it taller. */
+    min-height: calc(1.5rem * 4 + var(--contact-control-pad) * 2);
+    resize: vertical;
+  }
+
+  .field-error {
+    margin-top: var(--contact-label-gap);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--color-signal);
+  }
+
+  /* The button and the note on what pressing it does. */
+  .enquiry-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+
+  @media (min-width: 40rem) {
+    .enquiry-actions {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2rem;
+    }
+  }
+
+  .enquiry-note {
+    max-width: 22rem;
+    font-size: 0.75rem;
+    line-height: 1.7;
+    color: var(--color-ash);
+  }
+
+  .enquiry-status p {
+    border-left: 2px solid var(--color-signal);
+    padding-left: 1rem;
+    font-size: 0.875rem;
+    line-height: 1.7;
+    color: var(--color-ash);
+  }
+}
+
+/* ==================================================================
    THE OPENING SEQUENCE
    ------------------------------------------------------------------
    A rendered camera on a dark stage: it turns, the lens comes at the

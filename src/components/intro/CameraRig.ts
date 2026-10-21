@@ -66,6 +66,28 @@ import * as THREE from "three";
    moulded rather than cast. */
 const BODY = { w: 15.6, h: 8.6, d: 5.0, radius: 0.46, bevel: 0.18 };
 
+/**
+ * How far the parts laid onto the shell — the top plate, the base
+ * strip — stand proud of it, in centimetres.
+ *
+ * Three tenths of a millimetre, which on a 156mm body is the seam a
+ * real plate sits at and is under two pixels on screen at the
+ * closest the sequence ever frames the camera.
+ *
+ * It is not a cosmetic figure. Built to the shell's exact dimensions,
+ * those parts' faces were the SAME PLANES as the shell's — the plate
+ * shares the body's width, depth and corner radius, so its top, front,
+ * back and both flanks lay in the shell's own surfaces. Two surfaces
+ * at one depth is a tie the depth buffer cannot break, and the winner
+ * flips from pixel to pixel and from frame to frame as the camera
+ * breathes: the whole top of the body strobing between chrome and
+ * dark alloy, which is exactly what the flicker was.
+ *
+ * Standing the plate proud resolves it in geometry rather than in a
+ * bias: there is no tie left to break, at any angle or distance.
+ */
+const PROUD = 0.03;
+
 /** The optical axis. Centred across the body, a little below middle. */
 const AXIS = { x: 0, y: -0.55 };
 
@@ -561,7 +583,16 @@ export function createCameraRig(options: RigOptions): CameraRig {
   }
 
   const scene = new THREE.Scene();
-  const view = new THREE.PerspectiveCamera(34, width / height, 0.1, 400);
+  /* The depth range is drawn tight around the one object in the
+     scene, because depth precision is spent between the planes and a
+     perspective buffer spends most of it close to the near one. At
+     0.1 it nearly all sat in the first few centimetres, where there
+     is nothing, and the camera — 18cm away at the closest the push
+     comes, 64 at the furthest the shot opens on — was left resolving
+     its surfaces at barely a hundredth of a millimetre. Tight planes
+     are fifteen times the resolution over exactly the range used, so
+     parts that sit close together stay in their proper order. */
+  const view = new THREE.PerspectiveCamera(34, width / height, 1.5, 160);
 
   const disposables: { dispose(): void }[] = [];
   const keep = <T extends { dispose(): void }>(item: T): T => {
@@ -817,10 +848,19 @@ export function createCameraRig(options: RigOptions): CameraRig {
      camera". What a rangefinder has along its foot instead is a thin
      bright strip where the baseplate meets the covering. */
   const baseStrip = mesh(
-    shellGeometry(BODY.w, 0.5, BODY.d, BODY.radius, 0.1, 5),
+    shellGeometry(
+      BODY.w + PROUD * 2,
+      0.5 + PROUD,
+      BODY.d + PROUD * 2,
+      BODY.radius + PROUD,
+      0.1,
+      5,
+    ),
     chrome,
   );
-  baseStrip.position.set(0, -BODY.h / 2 + 0.24, 0);
+  /* Grown downward and outward by the seam, so the strip wraps the
+     foot of the shell instead of lying in its surfaces — see PROUD. */
+  baseStrip.position.set(0, -BODY.h / 2 + 0.24 - PROUD / 2, 0);
 
   /* ---- THE TOP PLATE ----
      This is the change that makes it a rangefinder rather than a
@@ -834,11 +874,23 @@ export function createCameraRig(options: RigOptions): CameraRig {
      metal top — which is what it looked like, and it was wrong. The
      body's own corner radius is carried through so the silhouette is
      continuous from plate to base. */
+  /* Proud by the width of a seam rather than flush to the micron: the
+     plate has to be the outermost surface where it meets the body, or
+     it is in the shell's own planes and the two fight for every pixel
+     — see PROUD. At three tenths of a millimetre the silhouette is
+     the same silhouette; what it is not is ambiguous. */
   const topPlate = mesh(
-    shellGeometry(BODY.w, 1.9, BODY.d, BODY.radius, 0.14, 6),
+    shellGeometry(
+      BODY.w + PROUD * 2,
+      1.9 + PROUD,
+      BODY.d + PROUD * 2,
+      BODY.radius + PROUD,
+      0.14,
+      6,
+    ),
     chrome,
   );
-  topPlate.position.set(0, BODY.h / 2 - 0.95, 0);
+  topPlate.position.set(0, BODY.h / 2 - 0.95 + PROUD / 2, 0);
 
   /* The finder housing: a low step along the back of the plate, where
      a rangefinder keeps its optics. Wide and shallow — it reads as

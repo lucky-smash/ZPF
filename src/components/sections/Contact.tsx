@@ -37,15 +37,10 @@ export function Contact() {
            to the same height. */}
         <div className="md:col-span-5 md:sticky md:top-28 md:self-start">
           <Reveal stagger={0.08}>
-            <p className="meta border-b border-rule-soft pb-4 text-ash">
-              For work queries
-            </p>
+            <p className="meta contact-head">For work queries</p>
 
             {site.phones.map((phone) => (
-              <div
-                key={phone.e164}
-                className="flex items-center justify-between gap-4 border-b border-rule-soft py-5"
-              >
+              <div key={phone.e164} className="contact-row">
                 <a
                   href={`tel:+${phone.e164}`}
                   className="link-underline text-lg text-bone md:text-xl"
@@ -56,14 +51,14 @@ export function Contact() {
                   href={phone.whatsappUrl ?? `https://wa.me/${phone.e164}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="meta shrink-0 text-ash transition-colors duration-500 hover:text-signal"
+                  className="meta text-ash transition-colors duration-500 hover:text-signal"
                 >
                   WhatsApp ↗
                 </a>
               </div>
             ))}
 
-            <div className="border-b border-rule-soft py-5">
+            <div className="contact-row">
               <a
                 href={`mailto:${site.email}`}
                 className="link-underline break-all text-lg text-bone md:text-xl"
@@ -72,7 +67,7 @@ export function Contact() {
               </a>
             </div>
 
-            <div className="flex gap-8 py-5">
+            <div className="contact-row contact-row-social">
               {site.socials.map((social) => (
                 <a
                   key={social.href}
@@ -86,7 +81,7 @@ export function Contact() {
               ))}
             </div>
 
-            <p className="mt-4 text-sm leading-relaxed text-ash">
+            <p className="contact-note">
               Based in {site.location}. Available for work on location.
             </p>
           </Reveal>
@@ -95,9 +90,7 @@ export function Contact() {
         {/* Enquiry form. */}
         <div className="md:col-span-6 md:col-start-7">
           <Reveal y={30}>
-            <p className="meta mb-8 border-b border-rule-soft pb-4 text-ash">
-              Or tell us about the project
-            </p>
+            <p className="meta contact-head">Or tell us about the project</p>
             <EnquiryForm />
           </Reveal>
         </div>
