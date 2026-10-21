@@ -87,13 +87,16 @@ export function RetroCamera() {
               One light: key from the upper left, fill from the lower
               right. Every gradient below is turned the same way. */}
 
-          {/* Brushed top plate. */}
+          {/* Brushed top plate, in bright metal. This camera is a
+              rangefinder, and the two-tone — a pale plate laid on a
+              black body — is the whole of that silhouette. It was
+              drawn as dark graphite, which is a reflex camera. */}
           <linearGradient id="cam-plate" x1="0" y1="0" x2="0.18" y2="1">
-            <stop offset="0" stopColor="#56575e" />
-            <stop offset="0.14" stopColor="#3e3f46" />
-            <stop offset="0.5" stopColor="#2b2c31" />
-            <stop offset="0.82" stopColor="#1c1d21" />
-            <stop offset="1" stopColor="#0e0f12" />
+            <stop offset="0" stopColor="#e6e1d5" />
+            <stop offset="0.14" stopColor="#cdc7ba" />
+            <stop offset="0.5" stopColor="#a9a397" />
+            <stop offset="0.82" stopColor="#837d73" />
+            <stop offset="1" stopColor="#5d5850" />
           </linearGradient>
 
           {/* The pentaprism housing, a facet brighter than the plate. */}
@@ -296,23 +299,35 @@ export function RetroCamera() {
 
         {/* ==== THE CAMERA ======================================== */}
         <g data-cam-body className="cam-body">
-          {/* ---- Pentaprism housing, with the hot shoe on top ---- */}
+          {/* ---- Finder housing, with the hot shoe on top ----
+              Low and wide, stepped off the back of the plate. The
+              tall pentaprism that used to rise out of the middle here
+              is the one feature a rangefinder never has, and it is
+              the first thing the eye reads. */}
           <g>
-            <path
-              d="M34 0 37.9-7.9a1.5 1.5 0 0 1 1.4-0.9h21.4a1.5 1.5 0 0 1 1.4 0.9L66 0z"
-              fill="url(#cam-prism)"
+            <rect
+              x="27"
+              y="-4.4"
+              width="46"
+              height="4.6"
+              rx="1.1"
+              fill="url(#cam-plate)"
             />
-            <path
-              d="M34 0 37.9-7.9a1.5 1.5 0 0 1 1.4-0.9h21.4a1.5 1.5 0 0 1 1.4 0.9L66 0z"
+            <rect
+              x="27"
+              y="-4.4"
+              width="46"
+              height="4.6"
+              rx="1.1"
               fill="url(#cam-key)"
             />
-            {/* The housing's own right facet turning away from the key. */}
-            <path d="M62.1-8.8 66 0h-3.6l-3-8.8z" fill="#000000" opacity="0.38" />
+            {/* The lit top edge of the housing. */}
+            <rect x="28" y="-4.3" width="44" height="0.3" rx="0.15" fill="#ffffff" opacity="0.3" />
             {/* Hot shoe: a recess with a chrome lip, not a bar laid on. */}
-            <rect x="44.4" y="-8.7" width="11.2" height="2.1" rx="0.3" fill="#111115" />
-            <rect x="45.1" y="-8.7" width="9.8" height="0.6" rx="0.25" fill="#5e5f67" />
-            <rect x="45.1" y="-7.3" width="9.8" height="0.55" rx="0.25" fill="#46474e" />
-            <rect x="48.9" y="-8.1" width="2.2" height="1.1" rx="0.25" fill="#060608" />
+            <rect x="44.4" y="-6.5" width="11.2" height="2.2" rx="0.3" fill="#2a2a2e" />
+            <rect x="45.1" y="-6.5" width="9.8" height="0.6" rx="0.25" fill="#d8d2c6" />
+            <rect x="45.1" y="-5.1" width="9.8" height="0.55" rx="0.25" fill="#9b958a" />
+            <rect x="48.9" y="-5.9" width="2.2" height="1.1" rx="0.25" fill="#0a0a0c" />
           </g>
 
           {/* ---- Top plate ------------------------------------------ */}
@@ -353,6 +368,26 @@ export function RetroCamera() {
             {/* The seam where the plate meets the body. */}
             <rect x="0" y="13.1" width="100" height="0.55" fill="#000000" opacity="0.85" />
             <rect x="0" y="0.1" width="100" height="0.3" fill="#ffffff" opacity="0.12" />
+
+            {/* ---- The finder windows ----
+                Set into the plate between the speed dial and the
+                rewind: the bright-line finder, the illuminator, and
+                the rangefinder window. Dark glass in bright metal —
+                the detail that says which kind of camera this is
+                once the prism above it has gone. */}
+            <g>
+              <rect x="56" y="3.2" width="11.5" height="7.2" rx="0.9" fill="#0a0b0f" />
+              <rect x="56.5" y="3.6" width="10.5" height="6.4" rx="0.7" fill="#1b2230" />
+              <rect x="56.5" y="3.6" width="10.5" height="2.1" rx="0.7" fill="#ffffff" opacity="0.1" />
+
+              <rect x="69.5" y="4.6" width="4.2" height="4.4" rx="0.8" fill="#0a0b0f" />
+              <rect x="69.9" y="4.9" width="3.4" height="3.8" rx="0.6" fill="#241f1b" />
+              <rect x="69.9" y="4.9" width="3.4" height="1.3" rx="0.6" fill="#ffffff" opacity="0.08" />
+
+              <rect x="86.5" y="4.2" width="5.6" height="5.2" rx="0.8" fill="#0a0b0f" />
+              <rect x="87" y="4.6" width="4.6" height="4.4" rx="0.6" fill="#1b2230" />
+              <rect x="87" y="4.6" width="4.6" height="1.5" rx="0.6" fill="#ffffff" opacity="0.1" />
+            </g>
           </g>
 
           {/* ---- Film advance lever, far left ---------------------- */}
