@@ -810,6 +810,132 @@
   transform-origin: 50% 50%;
 }
 
+/* ==================================================================
+   THE VIEWFINDER
+   The still that trails the cursor across the category index.
+
+   It is a frame, not a card: a hairline in the same warm ink the
+   camera's own markings are etched in, four corner marks, one soft
+   shadow to lift it off the black, and a hairline of light caught on
+   the inside edge. Everything here is a single pixel wide on purpose —
+   the photograph is the subject, and the frame's whole job is to say
+   what is holding it.
+   ================================================================== */
+.vf {
+  position: relative;
+  width: 15rem;
+  /* 3:4. A still from a film company should be a frame with a
+     proportion, not the square this used to be. */
+  aspect-ratio: 3 / 4;
+  border-radius: 0.875rem;
+  background-color: var(--color-charcoal);
+  /* Warm hairline, then the lift off the page. The shadow is wide and
+     low-opacity rather than tight and dark: a frame held a little off
+     a black surface, not a card dropped onto it. */
+  box-shadow:
+    0 0 0 1px rgba(236, 214, 168, 0.16),
+    0 2rem 4rem -1.5rem rgba(0, 0, 0, 0.9),
+    0 0.5rem 1.5rem -0.75rem rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  transform: scale(0.97);
+  transition:
+    opacity 0.45s var(--ease-gate),
+    transform 0.55s var(--ease-gate);
+  will-change: transform, opacity;
+}
+
+.vf[data-open] {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* The gate the stills sit in, inset so the hairline above reads as a
+   frame around them rather than a border on them. */
+.vf-plate {
+  position: absolute;
+  inset: 0.3125rem;
+  overflow: hidden;
+  border-radius: 0.625rem;
+  background-color: var(--color-pitch);
+  /* The light caught on the inside edge of the opening. */
+  box-shadow:
+    inset 0 0 0 1px rgba(242, 237, 228, 0.07),
+    inset 0 1px 0 rgba(242, 237, 228, 0.06);
+}
+
+/* Every still is mounted; only the hovered one is opaque. The scale is
+   small on purpose — enough that the change has a direction, not
+   enough to read as a zoom. */
+.vf-still {
+  opacity: 0;
+  transform: scale(1.04);
+  transition:
+    opacity 0.5s var(--ease-gate),
+    transform 0.7s var(--ease-gate);
+}
+
+.vf-still[data-on] {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ---- The four etched marks ---------------------------------------
+   Drawn with two borders each and placed by nth-child, so there is no
+   markup carrying position. */
+.vf-mark {
+  position: absolute;
+  width: 0.6rem;
+  height: 0.6rem;
+  border: 1px solid var(--color-sand);
+  opacity: 0.34;
+  transition: opacity 0.45s var(--ease-gate);
+}
+
+.vf:not([data-open]) .vf-mark {
+  opacity: 0;
+}
+
+.vf-mark:nth-of-type(1) {
+  top: 0.875rem;
+  left: 0.875rem;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.vf-mark:nth-of-type(2) {
+  top: 0.875rem;
+  right: 0.875rem;
+  border-left: 0;
+  border-bottom: 0;
+}
+
+.vf-mark:nth-of-type(3) {
+  bottom: 0.875rem;
+  left: 0.875rem;
+  border-right: 0;
+  border-top: 0;
+}
+
+.vf-mark:nth-of-type(4) {
+  bottom: 0.875rem;
+  right: 0.875rem;
+  border-left: 0;
+  border-top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vf,
+  .vf-still,
+  .vf-mark {
+    transition-duration: 0.01ms;
+  }
+
+  .vf-still[data-on],
+  .vf:not([data-open]) .vf {
+    transform: none;
+  }
+}
+
 /* The WebGL flight, over the photograph and under the type. */
 .sky-flight {
   position: absolute;
