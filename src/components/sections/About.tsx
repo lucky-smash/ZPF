@@ -16,7 +16,7 @@ export function About() {
   return (
     <section
       id="about"
-      className="shell scroll-mt-24 border-t border-rule-soft py-20 md:py-32"
+      className="shell scroll-mt-24 border-t border-rule-soft beat"
     >
       <SectionIntro index="07" eyebrow="About ŹPF" />
 
@@ -58,8 +58,14 @@ export function About() {
           </Reveal>
 
           <Reveal delay={0.1} className="mt-10 md:mt-14">
-            <blockquote className="border-l-2 border-signal pl-6">
-              <p className="text-lg italic leading-relaxed text-bone md:text-xl">
+            {/* The company's own words about itself, which is the one
+                place on the page where a sentence is given the display
+                face. Set at the narrow width and a loose measure, so it
+                reads as quoted speech rather than as a heading — there
+                is no italic in the build, and a synthesised slant is
+                worse than no accent at all. */}
+            <blockquote className="border-l border-signal pl-6 md:pl-8">
+              <p className="display measure-wide text-[clamp(1.25rem,2.2vw,1.75rem)] text-bone [--display-leading:1.24] [--display-stretch:94%] [--display-track:-0.015em]">
                 &ldquo;{about.philosophy}&rdquo;
               </p>
             </blockquote>

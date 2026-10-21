@@ -10,7 +10,7 @@ import { TestimonialSequence } from "./TestimonialSequence";
  */
 export function Testimonials() {
   return (
-    <section className="shell border-t border-rule-soft py-20 md:py-32">
+    <section className="shell border-t border-rule-soft beat">
       <SectionIntro index="08" eyebrow="In their words" />
 
       <div className="mt-10 grid grid-cols-1 gap-12 md:mt-16 md:grid-cols-12 md:gap-10">

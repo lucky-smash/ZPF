@@ -8,11 +8,20 @@ import { brandMark, site } from "@/data";
 import { MOTION_OK, gsap, useIsomorphicLayoutEffect } from "@/lib/gsap";
 import { afterIntro } from "@/lib/intro";
 
+/**
+ * The links, and which of them is the action.
+ *
+ * Three is the whole navigation and it stays three. The reference's
+ * own menu is four words and nothing else, and the discipline that
+ * buys is that every one of them is legible at 11px over a
+ * photograph — which is where this navigation actually lives.
+ */
 const NAV = [
   { label: "Work", href: "/#work" },
   { label: "About", href: "/#about" },
-  { label: "Contact", href: "/#contact" },
 ];
+
+const ACTION = { label: "Start a project", href: "/#contact" };
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -103,7 +112,7 @@ export function Header() {
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-colors duration-500 ${
         lifted && !open
-          ? "border-b border-rule-soft bg-ink/80 backdrop-blur-md"
+          ? "border-b border-rule-soft bg-ink/75 backdrop-blur-xl"
           : "border-b border-transparent"
       }`}
     >
@@ -125,11 +134,16 @@ export function Header() {
             priority
             className="h-7 w-auto md:h-8"
           />
-          <span className="meta hidden text-ash sm:block">{site.legalName}</span>
+          {/* The company name beside the monogram, in the widest
+              setting the type system has. One phrase, standing on its
+              own, which is the only place meta-wide belongs. */}
+          <span className="meta meta-wide hidden text-ash sm:block">
+            {site.legalName}
+          </span>
         </Link>
 
         <nav aria-label="Primary" className="hidden md:block">
-          <ul className="flex items-center gap-10">
+          <ul className="flex items-center gap-9">
             {NAV.map((item) => (
               <li key={item.href}>
                 <Link href={item.href} className="meta link-underline text-bone">
@@ -137,6 +151,14 @@ export function Header() {
                 </Link>
               </li>
             ))}
+            <li>
+              <Link
+                href={ACTION.href}
+                className="pill meta h-10 min-h-0 px-5"
+              >
+                {ACTION.label}
+              </Link>
+            </li>
           </ul>
         </nav>
 
@@ -173,14 +195,14 @@ export function Header() {
       >
         <nav aria-label="Mobile">
           <ul className="flex flex-col gap-2">
-            {NAV.map((item, index) => (
+            {[...NAV, ACTION].map((item, index) => (
               <li key={item.href} className="border-b border-rule-soft py-4">
                 <Link
                   href={item.href}
                   onClick={close}
-                  className="flex items-baseline gap-5 text-4xl font-light tracking-tight"
+                  className="display flex items-baseline gap-5 text-[clamp(2rem,10vw,2.75rem)]"
                 >
-                  <span className="meta text-signal">
+                  <span className="meta meta-wide text-signal">
                     {String(index + 1).padStart(2, "0")}
                   </span>
                   {item.label}
@@ -194,7 +216,7 @@ export function Header() {
           <a href={`mailto:${site.email}`} className="text-base text-bone">
             {site.email}
           </a>
-          <div className="flex gap-6">
+          <div className="flex gap-7">
             {site.socials.map((social) => (
               <a
                 key={social.href}

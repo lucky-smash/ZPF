@@ -22,7 +22,7 @@ export function SectionIntro({
 }: SectionIntroProps) {
   return (
     <Reveal className={`flex items-baseline gap-4 ${className}`}>
-      <span className="meta text-signal">{index}</span>
+      <span className="meta meta-wide text-signal">{index}</span>
       <span aria-hidden className="h-px flex-1 translate-y-[-0.3em] bg-rule" />
       <span className="meta text-ash">{eyebrow}</span>
       {children}

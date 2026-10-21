@@ -1,4 +1,7 @@
-import { intro, site } from "@/data";
+import { site } from "@/data";
+
+/** What is loaded in it. Engraved on the camera, and only here. */
+const STOCK = "35mm";
 
 /** The six iris leaves. The angle is the only thing that differs. */
 const BLADES = [0, 60, 120, 180, 240, 300];
@@ -8,12 +11,6 @@ const LENS = { x: 50, y: 37.5, glass: 10.8 };
 
 /** Shutter release centre, reused by the CSS affordances over it. */
 const RELEASE = { x: 20, y: 6.8 };
-
-interface RetroCameraProps {
-  onCapture: () => void;
-  /** Spent once the sequence is running, so a second press is impossible. */
-  disabled: boolean;
-}
 
 /**
  * A VINTAGE 35MM SINGLE-LENS REFLEX
@@ -63,23 +60,22 @@ interface RetroCameraProps {
  * refs, so the choreography stays in CameraIntro and this file stays
  * drawing. Nothing about those hooks changed with the redraw.
  *
- * The whole camera is the control. Pressing anywhere on the body fires
- * the shutter, which is how a camera behaves in the hand, and gives
- * touch a target the size of the viewport rather than a 40px dome. The
- * release is still drawn, lit and pressed, so it is obvious *where* the
- * camera is being pressed.
+ * WHAT IT IS FOR NOW
+ *
+ * It is no longer the opening sequence. That is a rendered camera —
+ * see CameraRig.ts — which turns, pushes into its own lens and fires.
+ * This is what a browser that cannot give a WebGL context gets
+ * instead: the same camera, drawn, held for a beat and flashed
+ * through. So it is a still rather than a control, and the press
+ * affordances have gone with the interaction they invited.
+ *
+ * It is worth keeping precisely because it needs nothing: no context,
+ * no model, no download, and it is sharp at any size. A fallback that
+ * can itself fail is not one.
  */
-export function RetroCamera({ onCapture, disabled }: RetroCameraProps) {
+export function RetroCamera() {
   return (
-    <button
-      type="button"
-      data-cam
-      data-cursor-label="Capture"
-      onClick={onCapture}
-      disabled={disabled}
-      aria-label={intro.action}
-      className="cam"
-    >
+    <div data-cam aria-hidden className="cam">
       <svg
         className="cam-art"
         viewBox="-10 -14 120 90"
@@ -492,7 +488,7 @@ export function RetroCamera({ onCapture, disabled }: RetroCameraProps) {
               y="7.6"
               textAnchor="middle"
             >
-              {intro.stock}
+              {STOCK}
             </text>
           </g>
 
@@ -533,7 +529,7 @@ export function RetroCamera({ onCapture, disabled }: RetroCameraProps) {
               {site.name}
             </text>
             <text className="cam-badge" x="75" y="33.4">
-              {intro.stock}
+              {STOCK}
             </text>
 
             {/* Self-timer lever, on the photographer's right — which
@@ -874,16 +870,6 @@ export function RetroCamera({ onCapture, disabled }: RetroCameraProps) {
         </g>
       </svg>
 
-      {/* The affordances. Kept in HTML and positioned over the release
-          in camera units, so the pulse and the focus collar stay in
-          the cascade where the phase rules can reach them. */}
-      <span aria-hidden className="cam-press" />
-      <span aria-hidden className="cam-press-collar" />
-
-      <span className="cam-cue" data-intro-copy>
-        <span aria-hidden className="cam-cue-dot" />
-        {intro.prompt}
-      </span>
-    </button>
+    </div>
   );
 }

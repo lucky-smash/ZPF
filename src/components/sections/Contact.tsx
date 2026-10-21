@@ -13,7 +13,7 @@ export function Contact() {
   return (
     <section
       id="contact"
-      className="shell scroll-mt-24 border-t border-rule-soft py-20 md:py-32"
+      className="shell scroll-mt-24 border-t border-rule-soft beat"
     >
       <SectionIntro index="10" eyebrow="Start a project" />
 

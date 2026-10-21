@@ -23,7 +23,7 @@ export function TeamProfiles() {
               sizes="(max-width: 64rem) 50vw, 25vw"
             />
           ) : null}
-          <h3 className="mt-4 text-lg font-light">{member.name}</h3>
+          <h3 className="display mt-4 text-lg">{member.name}</h3>
           <p className="meta mt-1 text-ash">{member.role}</p>
           {member.bio ? (
             <p className="mt-3 text-sm leading-relaxed text-ash">{member.bio}</p>

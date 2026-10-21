@@ -14,7 +14,7 @@ export function Statement() {
   return (
     <section
       aria-label="Why we film"
-      className="shell border-t border-rule-soft py-20 md:py-32"
+      className="shell border-t border-rule-soft beat"
     >
       <SectionIntro index="03" eyebrow="Why we film" />
 

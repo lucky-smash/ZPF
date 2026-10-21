@@ -8,6 +8,23 @@ if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
   // Animating transforms only; let the browser keep its own rounding.
   gsap.defaults({ ease: "power3.out", duration: 1 });
+
+  /**
+   * How much of a stalled frame a timeline is allowed to swallow.
+   *
+   * GSAP advances by real elapsed time, so a main thread that blocks
+   * for 400ms — compiling a shader, decoding a photograph, hydrating
+   * — hands the next tick 400ms of progress and the animation jumps
+   * that far. The default only steps in past half a second, which is
+   * long enough for a jump to be the thing a visitor notices.
+   *
+   * Below 250ms nothing changes. Past it, a tick counts for 25ms,
+   * which turns a jump into a brief slow-down: the opening sequence
+   * loses a fraction of a second rather than skipping a shot, and
+   * every scroll-driven animation on the page gets the same
+   * protection from the same line.
+   */
+  gsap.ticker.lagSmoothing(250, 25);
 }
 
 /**

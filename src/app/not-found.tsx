@@ -22,13 +22,13 @@ export default function NotFound() {
         <div className="mt-10 flex flex-wrap gap-4">
           <Link
             href="/"
-            className="meta inline-flex items-center gap-4 bg-bone px-6 py-4 text-ink transition-colors duration-500 hover:bg-signal hover:text-bone"
+            className="meta pill pill-solid group"
           >
             Back to the opening frame <span aria-hidden>→</span>
           </Link>
           <Link
             href="/#work"
-            className="meta inline-flex items-center gap-4 border border-rule px-6 py-4 text-bone transition-colors duration-500 hover:border-bone"
+            className="meta pill group"
           >
             Selected work <span aria-hidden>→</span>
           </Link>

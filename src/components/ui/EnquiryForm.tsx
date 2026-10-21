@@ -271,7 +271,7 @@ export function EnquiryForm() {
         <button
           type="submit"
           disabled={status.state === "sending"}
-          className="group inline-flex items-center justify-between gap-6 bg-bone px-6 py-4 text-ink transition-colors duration-500 hover:bg-signal hover:text-bone disabled:opacity-60"
+          className="pill pill-solid group disabled:opacity-55"
         >
           <span className="meta">
             {status.state === "sending"
@@ -280,10 +280,7 @@ export function EnquiryForm() {
                 ? "Send enquiry"
                 : "Compose enquiry"}
           </span>
-          <span
-            aria-hidden
-            className="transition-transform duration-500 group-hover:translate-x-1"
-          >
+          <span aria-hidden data-arrow>
             →
           </span>
         </button>

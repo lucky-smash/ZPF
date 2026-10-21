@@ -14,91 +14,134 @@ import {
   markIntroSeen,
 } from "@/lib/intro";
 import { holdScroll, releaseScroll } from "@/lib/smooth-scroll";
+import { type CameraRig, createCameraRig, supportsWebGL } from "./CameraRig";
 import { RetroCamera } from "./RetroCamera";
 
 /**
- * idle → shutterPressed → flash → filmReveal → websiteRevealed.
- * One value, set in one place, and the only thing the markup keys off.
+ * The shot the sequence is in. One value, set in one place, and the
+ * only thing the markup keys off.
+ *
+ *   reveal  the camera comes up out of the dark
+ *   turn    it rotates to show the body and the barrel
+ *   push    the lens comes at the viewer
+ *   fire    the shutter, and the light
  */
-type Phase = "idle" | "pressed" | "flash" | "film" | "revealed";
-
-/** Where the film's leading edge rides while it feeds out, in viewports. */
-const EDGE = 0.9;
-
-/** Where the camera settles once the film is running, in viewports. */
-const CAM_REST = 0.23;
+type Phase = "idle" | "reveal" | "turn" | "push" | "fire" | "revealed";
 
 /** Phones get the same sequence at a shorter stride. */
 const NARROW = "(max-width: 47.99rem)";
 
 /**
- * How long the camera waits, in seconds, before it fires by itself.
- *
- * Long enough to read as a held breath before the shutter — the camera
- * arrives, the cue settles, and then it goes — and short enough that
- * nobody has time to wonder whether the page is still loading. The
- * shutter is still a real control for anyone who reaches for it first.
+ * How long the camera stands there before the sequence begins, in
+ * seconds. Long enough to read as a held breath, short enough that
+ * nobody wonders whether the page is still loading.
  */
-const AUTO_FIRE = 1.15;
+const HOLD = 0.35;
 
 /**
  * THE OPENING SEQUENCE
+ * ------------------------------------------------------------------
+ * A rendered camera on a dark stage. Six shots:
  *
- * A camera over the homepage. The shutter trips, the flash fires, a
- * strip of film feeds out of the body, travels past six frames, and the
- * last of them — the hero photograph — opens out of its film borders
- * into the hero itself. One timeline, no scrolling, nothing to click.
+ *   A  the room comes up around it — exposure, key, fill, rim
+ *   B  it turns, and the studio sweeps across the metal
+ *   C  the lens comes at the viewer, field of view closing with it
+ *   D  the shutter: the iris snaps shut and the body recoils
+ *   E  the flash, out of the front element and nowhere else
+ *   F  the homepage, already behind the light
  *
- * It plays itself: the camera lands, holds for a beat, and fires. The
- * shutter is still a working control for anyone who reaches for it
- * before the beat is up — it just starts the same timeline early —
- * and Skip and Escape leave at any point.
+ * One timeline, no scrolling, nothing to click. Skip and Escape leave
+ * at any point.
  *
- * It is layered over the existing page rather than replacing it. The
- * homepage is rendered, complete, underneath from the first byte; this
- * only covers it. Three things follow from that, and they are the
- * reason it is built this way:
+ * ------------------------------------------------------------------
+ * HOW IT IS LAYERED, AND WHY
+ * ------------------------------------------------------------------
+ * It covers the existing page rather than replacing it. The homepage
+ * is rendered, complete, underneath from the first byte. Three things
+ * follow, and they are the reason it is built this way:
  *
- *  - With JavaScript off, or if hydration never happens, the overlay is
- *    never displayed and the site is simply the site.
- *  - The hero photograph beneath is the same file as the final film
- *    frame, at the same focal point, so the hand-over is a dissolve
- *    between two identical images — the only visible change is the
+ *  - With JavaScript off, or if hydration never happens, the overlay
+ *    is never displayed and the site is simply the site.
+ *  - The photograph the flash resolves into is the hero's own file, at
+ *    the hero's own crop and scrim, so the hand-over is a dissolve
+ *    between two identical images. The only visible change is the
  *    headline arriving.
- *  - Nothing is duplicated. The frames, the captions and the hero image
- *    all come from `src/data`.
+ *  - Nothing is duplicated. The copy and the image come from
+ *    `src/data`.
  *
- * The scroll-driven film roll further down the page is a separate,
- * shorter thing: this is a sequence with a beginning and a payoff, that
- * one is a section you scroll through.
+ * ------------------------------------------------------------------
+ * WHO WRITES WHAT
+ * ------------------------------------------------------------------
+ * GSAP owns `rig.state` — a flat bag of numbers: orbit, elevation,
+ * distance, the push, the three lights, the iris, the recoil, the
+ * exposure. A separate render loop reads those once per frame and
+ * integrates them into transforms. So there is one writer per value
+ * and no second loop overwriting what the timeline just set, which is
+ * the same division of labour the sky flight downstream uses.
+ *
+ * The loop runs whether or not the timeline is playing, which is what
+ * keeps the camera a lit object in a room rather than a still that
+ * starts moving: there is a fraction of a degree of sway on it the
+ * whole time, and it is never perfectly still even while it waits.
+ *
+ * ------------------------------------------------------------------
+ * WHAT HAPPENS WHEN IT CANNOT RUN
+ * ------------------------------------------------------------------
+ *  - Reduced motion: no sequence. The page is handed over on the first
+ *    frame, and nobody is shown a camera they did not ask to watch.
+ *  - No WebGL context: the drawn SVG camera is held for a beat and
+ *    flashed through — the same shutter, in two shots instead of six.
+ *  - A context lost mid-sequence: the sequence ends immediately and
+ *    the website takes the screen. A frozen canvas is never left over
+ *    the page.
  */
 export function CameraIntro() {
   const rootRef = useRef<HTMLDivElement>(null);
-  const reelRef = useRef<HTMLDivElement>(null);
-  const camWrapRef = useRef<HTMLDivElement>(null);
-  const filmRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
+  const stillRef = useRef<HTMLDivElement>(null);
 
   const [phase, setPhase] = useState<Phase>("idle");
   /** Replaying rebuilds the whole thing, rather than rewinding it. */
   const [runId, setRunId] = useState(0);
 
-  /* The two controls the sequence exposes. Held in refs because the
-     timeline that owns them is built inside a GSAP context, and React's
-     handlers must reach it without re-rendering. */
-  const captureRef = useRef<(() => void) | null>(null);
-  const skipRef = useRef<(() => void) | null>(null);
+  /**
+   * Whether this browser can give a graphics context — and therefore
+   * which camera is in the markup, the rendered one or the drawn one.
+   *
+   * It has to be state set in an effect rather than a call during
+   * render, because the answer differs between the server and the
+   * browser: there is no `document` to probe on the server, so a
+   * render-time call says "no WebGL" there and "yes" here, and React
+   * rightly refuses to reconcile two different trees. So the first
+   * commit renders neither camera, this lands a frame later, and the
+   * sequence below starts on the commit after that.
+   *
+   * Nothing is lost in that frame. The overlay is `display: none`
+   * until the boot script's attribute says otherwise, the scroll was
+   * locked before the first paint, and the photograph the sequence
+   * resolves into is in the markup from the first byte either way.
+   */
+  const [hasGL, setHasGL] = useState<boolean | null>(null);
 
-  const capture = useCallback(() => captureRef.current?.(), []);
+  useEffect(() => {
+    setHasGL(supportsWebGL());
+  }, []);
+
+  /* The one control the sequence exposes. Held in a ref because the
+     timeline that owns it is built inside a GSAP context, and React's
+     handler must reach it without re-rendering. */
+  const skipRef = useRef<(() => void) | null>(null);
   const skip = useCallback(() => skipRef.current?.(), []);
 
   useIsomorphicLayoutEffect(() => {
+    /* Still waiting to know which camera is in the markup. */
+    if (hasGL === null) return;
+
     const root = rootRef.current;
-    const reel = reelRef.current;
-    const film = filmRef.current;
-    const camWrap = camWrapRef.current;
+    const host = canvasRef.current;
     const heroLayer = heroRef.current;
-    if (!root || !reel || !film || !camWrap || !heroLayer) return;
+    if (!root || !host || !heroLayer) return;
 
     /* Nothing armed the sequence: a return visit in the same session,
        or the watchdog in the boot script handed the page back. Stand
@@ -121,14 +164,14 @@ export function CameraIntro() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const narrow = window.matchMedia(NARROW).matches;
     /* One factor sets the stride of the whole sequence. */
-    const beat = narrow ? 0.74 : 1;
+    const beat = narrow ? 0.76 : 1;
 
     window.scrollTo(0, 0);
     holdScroll();
 
     /* Take the page behind the overlay out of the tab order, so the
-       first Tab lands on the shutter and not on a link nobody can see.
-       Only what was actually changed is changed back. */
+       first Tab lands on Skip and not on a link nobody can see. Only
+       what was actually changed is changed back. */
     const held: Element[] = [];
     for (const node of Array.from(document.body.children)) {
       if (node === root || node.tagName === "SCRIPT") continue;
@@ -162,384 +205,382 @@ export function CameraIntro() {
       ScrollTrigger.refresh();
     };
 
+    /* Someone who asked for less motion is not shown a camera at all.
+       Not a shortened sequence — an opening title is exactly the kind
+       of thing the preference is about. */
+    if (reduced) {
+      settle();
+      return () => {
+        for (const node of held) node.removeAttribute("inert");
+        delete html.dataset.introLock;
+        delete html.dataset.introReady;
+        releaseScroll();
+      };
+    }
+
+    /* ---------------------------------------------------------------
+       THE SCENE
+
+       Built before the timeline, because the timeline's targets are
+       its state object. If a context cannot be had, `rig` stays null
+       and the fallback below runs the short sequence over the drawn
+       camera instead.
+       --------------------------------------------------------------- */
+    let rig: CameraRig | null = null;
+
+    if (hasGL) {
+      try {
+        rig = createCameraRig({
+          width: host.clientWidth || window.innerWidth,
+          height: host.clientHeight || window.innerHeight,
+          /* A phone renders the same scene without the shadow map, at
+             a lower pixel ratio and with coarser lathes. The object is
+             a third of the size on screen and the saving is most of
+             the cost. */
+          lean: narrow,
+        });
+        host.appendChild(rig.canvas);
+      } catch {
+        rig = null;
+      }
+    }
+
+    const liveRig = rig;
+
+    /* ---- THE RENDER LOOP ------------------------------------------
+       Independent of the timeline, and running from the first frame.
+       Stopped when the tab goes away, so a sequence opened in a
+       background tab is not rendering to nobody. GSAP's own ticker
+       stops there too, so the timeline and the loop come back in step
+       rather than the timeline having played on without the picture.
+       --------------------------------------------------------------- */
+    let frame = 0;
+    let looping = false;
+
+    const tick = (time: number) => {
+      liveRig?.render(time);
+      frame = requestAnimationFrame(tick);
+    };
+
+    const startLoop = () => {
+      if (looping || !liveRig) return;
+      looping = true;
+      frame = requestAnimationFrame(tick);
+    };
+
+    const stopLoop = () => {
+      if (!looping) return;
+      looping = false;
+      cancelAnimationFrame(frame);
+    };
+
     const ctx = gsap.context(() => {
-      const dome = root.querySelector<HTMLElement>("[data-cam-dome]");
-      const body = root.querySelector<HTMLElement>("[data-cam-body]");
-      const blades = root.querySelector<HTMLElement>("[data-cam-blades]");
-      const core = root.querySelector<HTMLElement>("[data-cam-core]");
-      const bloom = root.querySelector<HTMLElement>("[data-cam-bloom]");
-      const lens = root.querySelector<HTMLElement>("[data-cam-lens]");
       const copy = root.querySelectorAll<HTMLElement>("[data-intro-copy]");
+      const finder = root.querySelector<HTMLElement>("[data-intro-finder]");
       const flash = root.querySelector<HTMLElement>("[data-intro-flash]");
       const veil = root.querySelector<HTMLElement>("[data-intro-veil]");
       const leak = root.querySelector<HTMLElement>("[data-intro-leak]");
-      const scrim = root.querySelectorAll<HTMLElement>("[data-intro-scrim]");
+      const scrims = root.querySelectorAll<HTMLElement>("[data-intro-scrim]");
       const heroImg = root.querySelector<HTMLElement>("[data-intro-hero-img]");
-      const counter = root.querySelector<HTMLElement>("[data-intro-counter]");
-      const cells = gsap.utils.toArray<HTMLElement>("[data-cell]", film);
-      const lastCell = cells[cells.length - 1];
-
-      gsap.set(reel, { xPercent: -50, yPercent: -50 });
-      /* Scaled from its own top edge, so however far the film is pushed
-         in it stays joined to the camera's film slot. */
-      gsap.set(film, { xPercent: -50, transformOrigin: "50% 0%" });
-      gsap.set(blades, { ["--blade" as string]: 1 });
+      const readPct = root.querySelector<HTMLElement>("[data-read-pct]");
+      const readStop = root.querySelector<HTMLElement>("[data-read-stop]");
+      const still = stillRef.current;
 
       /* ---------------------------------------------------------------
-         Geometry.
+         RELOAD VARIATION
 
-         The reel is one column: camera on top, film hanging from the
-         slot. The reel translates; the film scales inside it. Measured
-         rather than assumed, so a resize, a font swap or a change to
-         --u costs nothing to keep in step.
+         Small and bounded. The brief for this is "repeated visits
+         should not feel mechanical", and the trap is that a random
+         camera angle is a random composition — most of them worse than
+         the one that was designed. So what varies is a few degrees of
+         bearing, a couple of degrees of elevation and a fraction of a
+         second of hold: enough that two reloads are visibly not the
+         same take, never enough to put the camera somewhere it was not
+         art-directed to be.
          --------------------------------------------------------------- */
-      const geo = {
-        vh: 0,
-        camH: 0,
-        filmTop: 0,
-        stripH: 0,
-        scale: 1,
-        yStart: 0,
-        yEnd: 0,
-      };
-
-      const measure = () => {
-        geo.vh = window.innerHeight;
-        geo.camH = camWrap.offsetHeight;
-        geo.filmTop = film.offsetTop;
-        geo.stripH = film.offsetHeight;
-
-        /* How far to push in while the film runs, so a frame fills a
-           deliberate share of the screen at any viewport. */
-        const frameWidth = cells[0]?.offsetWidth || 1;
-        const target = narrow
-          ? window.innerWidth * 0.9
-          : Math.min(window.innerWidth * 0.44, 640);
-        geo.scale = gsap.utils.clamp(1, 2.1, target / frameWidth);
-
-        /* The reel's y that puts the camera's centre at CAM_REST. */
-        geo.yStart = geo.vh * (CAM_REST - 0.5);
-        /* And the y that puts the last frame dead centre. */
-        const centre = lastCell
-          ? lastCell.offsetTop + lastCell.offsetHeight / 2
-          : 0;
-        geo.yEnd = geo.camH / 2 - geo.filmTop - centre * geo.scale;
-      };
-
-      measure();
+      const vary = (spread: number) => (Math.random() - 0.5) * 2 * spread;
+      const openOrbit = -36 + vary(7);
+      const openElevation = 14 + vary(2.5);
+      const turnTo = 11 + vary(5);
 
       /* ---------------------------------------------------------------
-         The film's extension is not a tween of its own. It is derived,
-         every frame, from where the reel has travelled to: the leading
-         edge is held at EDGE of the viewport, which is what makes the
-         strip read as film still feeding out of the body rather than a
-         bar whose length happens to be animating.
+         THE FALLBACK — no graphics context
 
-         `emerge` ramps that relationship in from nothing during Phase A,
-         so the film starts at the slot with none of it out.
+         Two shots over the drawn camera: it comes up, and the shutter
+         fires through it. Short on purpose. Nobody should wait on a
+         sequence that cannot be the sequence.
          --------------------------------------------------------------- */
-      const live = { y: 0, scale: 1, emerge: 0 };
-      let shown = -1;
+      if (!liveRig) {
+        const tlFlat = gsap.timeline({ paused: true });
+        gsap.set(still, { opacity: 0, scale: 0.94 });
+        gsap.set(finder, { opacity: 0 });
 
-      const render = () => {
-        gsap.set(reel, { y: live.y });
-        gsap.set(film, { scale: live.scale });
+        tlFlat
+          .call(() => setPhase("reveal"))
+          .to(still, { opacity: 1, scale: 1, duration: 1.1, ease: "power2.out" })
+          .to(finder, { opacity: 1, duration: 0.7 }, 0.2)
+          .to(copy, { opacity: 1, y: 0, duration: 0.9, stagger: 0.1 }, 0.3)
+          .call(() => setPhase("fire"), undefined, 1.5)
+          .set(flash, { ["--fx" as string]: "50%", ["--fy" as string]: "46%" }, 1.5)
+          .to(flash, { opacity: 1, duration: 0.1, ease: "none" }, 1.5)
+          .to([copy, finder, still], { opacity: 0, duration: 0.3 }, 1.55)
+          .to(heroLayer, { opacity: 1, duration: 0.3 }, 1.56)
+          .to(scrims, { opacity: 1, duration: 0.5 }, 1.6)
+          .to(flash, { opacity: 0, duration: 0.5, ease: "power2.in" }, 1.6)
+          .to(root, {
+            opacity: 0,
+            duration: 0.5,
+            ease: "power2.inOut",
+            onStart: release,
+            onComplete: settle,
+          }, 2.0);
 
-        const pinned =
-          (geo.vh * EDGE -
-            geo.vh / 2 +
-            geo.camH / 2 -
-            live.y -
-            geo.filmTop) /
-          (geo.stripH * live.scale);
-        const out = gsap.utils.clamp(0, 1, pinned * live.emerge);
+        gsap.set(copy, { opacity: 0, y: 14 });
+        skipRef.current = () => {
+          if (handedOver) return;
+          tlFlat.pause();
+          settle();
+        };
+        gsap.delayedCall(0.2, () => tlFlat.play());
+        return;
+      }
 
-        /* Clipped, not resized: no layout work, and the perforations
-           keep their pitch however far the strip has come out. */
-        film.style.clipPath =
-          out > 0.999 ? "none" : `inset(0% 0% ${((1 - out) * 100).toFixed(2)}% 0%)`;
+      const state = liveRig.state;
 
-        /* Which frame is in the gate, read back from the same geometry
-           rather than from the timeline's clock, so the lit frame is
-           always the one actually sitting in the centre. */
-        if (!cells.length) return;
-        const atCentre = (geo.camH / 2 - live.y - geo.filmTop) / live.scale;
-        let near = 0;
-        let best = Infinity;
-        cells.forEach((cell, index) => {
-          const distance = Math.abs(
-            cell.offsetTop + cell.offsetHeight / 2 - atCentre,
-          );
-          if (distance < best) {
-            best = distance;
-            near = index;
-          }
-        });
-        if (near !== shown) {
-          shown = near;
-          cells.forEach((cell, index) => {
-            cell.dataset.active = String(index === near);
-          });
-          if (counter) {
-            counter.textContent = String(near + 1).padStart(2, "0");
-          }
-        }
-      };
+      /* The opening pose, written before the first frame is rendered so
+         nothing is ever seen from the wrong place. */
+      Object.assign(state, {
+        orbit: openOrbit,
+        elevation: openElevation,
+        distance: 64,
+        push: 0,
+        fov: 34,
+        key: 0,
+        fill: 0,
+        rim: 0,
+        iris: 1,
+        kick: 0,
+        exposure: 0,
+        bloom: 0,
+      });
 
-      /** The final frame's real position on screen, for the hand-over. */
-      const frameInset = () => {
-        if (!lastCell) return "inset(0px 0px 0px 0px)";
-        const r = lastCell.getBoundingClientRect();
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        return `inset(${Math.round(r.top)}px ${Math.round(w - r.right)}px ${Math.round(
-          h - r.bottom,
-        )}px ${Math.round(r.left)}px)`;
-      };
+      gsap.set(copy, { opacity: 0, y: 16 });
+      gsap.set(finder, { opacity: 0 });
+      gsap.set(heroImg, { scale: 1.07 });
+
+      /* Pay for every shader before the first beat rather than during
+         it — see `warm` in CameraRig. The pose above is already set,
+         so the frame this renders is the frame the sequence opens on. */
+      liveRig.warm();
+
+      startLoop();
 
       /* ---------------------------------------------------------------
          THE TIMELINE
-         One timeline, built paused, played once. Every phase is placed
-         at an absolute position so the ordering is readable here rather
-         than inferred from a chain of durations.
+
+         Built paused and played once. Every shot is placed at an
+         absolute time, in seconds × beat, so the whole sequence can be
+         read down the page as a shot list and retimed by moving one
+         number.
          --------------------------------------------------------------- */
-      const tl = gsap.timeline({
-        paused: true,
-        /* Fires on every render of the timeline, so the derived film
-           state can never be a frame behind the reel. */
-        onUpdate: render,
-      });
+      const t = (seconds: number) => seconds * beat;
+      const tl = gsap.timeline({ paused: true });
 
-      if (reduced) {
-        /* No flash and no unrolling for anyone who asked for less
-           motion: the camera is still the way in, but it hands over in
-           one quiet dissolve. */
-        tl.call(() => setPhase("flash"), undefined, 0)
-          .set(heroLayer, { clipPath: "inset(0px 0px 0px 0px)" }, 0)
-          .to(camWrap, { opacity: 0, duration: 0.3 }, 0)
-          .to(copy, { opacity: 0, duration: 0.3 }, 0)
-          .to(heroLayer, { opacity: 1, duration: 0.45 }, 0.05)
-          .to(scrim, { opacity: 1, duration: 0.35 }, 0.2)
-          .call(release, undefined, 0.5)
-          .to(root, { opacity: 0, duration: 0.3 }, 0.55)
-          .call(settle);
-      } else {
-        const b = beat;
+      /* ---- SHOT A — the room comes up around the camera ------------
+         The object is in position from the first frame; what changes
+         is the light on it. Exposure, then the key, then the fill and
+         the rim — in that order, because a key arriving before there
+         is any exposure to carry it is just a grey object appearing.
 
-        /* ---- shutterPressed: the dome goes in, the iris shuts ----
-           The travel is in the drawing's own units — one SVG user unit
-           is one camera unit — rather than in percentages of a
-           bounding box, so the release moves by a measured 1.15 units
-           into a well that is 1.3 units deep. It is a short, hard
-           press with a slow return, which is what a mechanical
-           release feels like. */
-        tl.call(() => setPhase("pressed"), undefined, 0)
-          .to(dome, { y: 1.15, scale: 0.96, duration: 0.08 * b, ease: "power2.in" }, 0)
-          .to(dome, { y: 0, scale: 1, duration: 0.3 * b, ease: "power3.out" }, 0.12 * b)
-          /* The body takes the press, then settles. */
-          .to(body, { y: 0.55, rotate: -0.22, duration: 0.07 * b, ease: "power2.in" }, 0.02 * b)
-          .to(body, { y: 0, rotate: 0, duration: 0.5 * b, ease: "elastic.out(1, 0.5)" }, 0.09 * b)
-          /* The blades close, kick round, and open again. */
-          .to(blades, { ["--blade" as string]: 0, duration: 0.08 * b, ease: "power2.in" }, 0.05 * b)
-          .to(blades, { rotate: -9, duration: 0.34 * b, ease: "power2.out" }, 0.05 * b)
-          .to(blades, { ["--blade" as string]: 0.98, duration: 0.18 * b, ease: "power2.out" }, 0.15 * b)
-          .to(blades, { rotate: 0, duration: 0.55 * b, ease: "power2.out" }, 0.22 * b)
-          /* A point of light gathers in the lens before it leaves. */
-          .fromTo(
-            core,
-            { opacity: 0, scale: 0.4 },
-            { opacity: 1, scale: 1, duration: 0.14 * b, immediateRender: false },
-            0,
-          );
-
-        /* ---- flash: once, brief, and centred on the lens ---- */
-        const f = 0.17 * b;
-        tl.call(() => setPhase("flash"), undefined, f)
-          .set(
-            flash,
-            {
-              /* Anchored to where the light actually comes from. */
-              ["--fx" as string]: () => {
-                if (!lens) return "50%";
-                const r = lens.getBoundingClientRect();
-                return `${((r.left + r.width / 2) / window.innerWidth) * 100}%`;
-              },
-              ["--fy" as string]: () => {
-                if (!lens) return "50%";
-                const r = lens.getBoundingClientRect();
-                return `${((r.top + r.height / 2) / window.innerHeight) * 100}%`;
-              },
-              transformOrigin: "var(--fx) var(--fy)",
-              /* The lens is read where it will be when the flash goes,
-                 not where it was when the timeline was built. */
-              immediateRender: false,
-            },
-            f,
-          )
-          .fromTo(
-            flash,
-            { scale: 0.16, opacity: 0 },
-            {
-              scale: 2.7,
-              opacity: 0.94,
-              duration: 0.11 * b,
-              ease: "power2.out",
-              immediateRender: false,
-            },
-            f,
-          )
-          .to(flash, { opacity: 0, duration: 0.44 * b, ease: "power2.in" }, f + 0.13 * b)
-          /* A short veil over everything, so the camera is genuinely
-             lost in the light for a moment rather than merely lit. */
-          .fromTo(
-            veil,
-            { opacity: 0 },
-            { opacity: 0.52, duration: 0.07 * b, immediateRender: false },
-            f + 0.02 * b,
-          )
-          .to(veil, { opacity: 0, duration: 0.32 * b, ease: "power2.in" }, f + 0.1 * b)
-          .fromTo(
-            bloom,
-            { opacity: 0 },
-            { opacity: 1, duration: 0.09 * b, immediateRender: false },
-            f,
-          )
-          .to(bloom, { opacity: 0, duration: 0.42 * b }, f + 0.12 * b)
-          .to(core, { opacity: 0, duration: 0.38 * b }, f + 0.14 * b)
-          /* The opening titles go with the flash, not after it. */
-          .to(copy, { opacity: 0, y: -14, duration: 0.42 * b, stagger: 0.04 * b }, f + 0.05 * b);
-
-        /* ---- filmReveal ---- */
-        const d = 0.5 * b;
-        tl.call(() => setPhase("film"), undefined, d)
-          /* PHASE A — the camera draws back and the film starts out of
-             the slot. The strip is still life-size here: it is exactly
-             as wide as the slot it is coming through. */
-          .to(live, { y: () => geo.yStart, duration: 0.8 * b, ease: "power2.inOut" }, d)
-          .to(live, { emerge: 1, duration: 0.72 * b, ease: "power2.out" }, d + 0.3 * b)
-          /* PHASE B — and we push in on it as it runs. */
-          .to(live, { scale: () => geo.scale, duration: 1.15 * b, ease: "power2.inOut" }, d + 0.45 * b)
-          .to(camWrap, { opacity: 0, duration: 0.9 * b, ease: "power2.in" }, d + 1.2 * b)
-          /* PHASE C — frames travel through the gate. Slow in and slow
-             out, so the first and last frames are given their moment
-             and the middle of the strip is genuinely pulled. */
-          .to(live, { y: () => geo.yEnd, duration: 2.3 * b, ease: "power2.inOut" }, d + 1.0 * b)
-          /* One warm light leak crosses the film, as on real stock. */
-          .fromTo(
-            leak,
-            { xPercent: -130, opacity: 0 },
-            {
-              xPercent: 130,
-              opacity: 1,
-              duration: 1.4 * b,
-              ease: "none",
-              immediateRender: false,
-            },
-            d + 1.3 * b,
-          )
-          .to(leak, { opacity: 0, duration: 0.5 * b }, d + 2.3 * b);
-
-        /* ---- PHASE D — the frame becomes the website ---- */
-        const o = d + 3.35 * b;
-        /* `immediateRender: false` is the whole of this phase working.
-           A fromTo renders its "from" the moment it is created, which
-           here would measure the final frame while it was still sitting
-           in the camera — and the photograph would then open out of a
-           rectangle somewhere below the screen. Deferred, the frame is
-           measured where it actually is: centred, at the end of the
-           travel, a beat before it opens. */
-        tl.fromTo(
-          heroLayer,
-          { clipPath: frameInset },
-          {
-            /* The photograph grows past its own film borders. */
-            clipPath: "inset(0px 0px 0px 0px)",
-            duration: 1.05 * b,
-            ease: "power3.inOut",
-            immediateRender: false,
-          },
-          o,
+         The dolly is slow and small, 58cm to 44. It is the shot
+         settling, not a move the viewer is meant to notice. */
+      tl.call(() => setPhase("reveal"), undefined, 0)
+        .to(state, { exposure: 1.32, duration: 1.2, ease: "power2.inOut" }, 0)
+        .to(state, { key: 1, duration: 1.15, ease: "power2.out" }, 0.08)
+        .to(state, { fill: 1, duration: 1.2, ease: "power1.out" }, 0.26)
+        .to(state, { rim: 1, duration: 1.3, ease: "power2.out" }, 0.38)
+        .to(state, { bloom: 0.34, duration: 1.2, ease: "power1.out" }, 0.45)
+        .to(state, { distance: 50, duration: 1.8, ease: "power2.out" }, 0)
+        .to(finder, { opacity: 1, duration: 0.8, ease: "power2.out" }, 0.35)
+        .to(copy, {
+          opacity: 1,
+          y: 0,
+          duration: 1,
+          ease: "power3.out",
+          stagger: 0.1,
+        }, 0.45)
+        /* The stray beam across the stage — the room has a light in
+           it, and this is the one moment it is visible as a beam
+           rather than as a highlight. */
+        .fromTo(
+          leak,
+          { opacity: 0, xPercent: -30 },
+          { opacity: 0.5, xPercent: 95, duration: 2, ease: "power1.inOut" },
+          0.25,
         )
-          .fromTo(
-            heroLayer,
-            { opacity: 0 },
-            {
-              opacity: 1,
-              duration: 0.34 * b,
-              ease: "power2.out",
-              immediateRender: false,
-            },
-            o,
-          )
-          .fromTo(
-            heroImg,
-            { scale: 1.055 },
-            {
-              scale: 1,
-              duration: 1.35 * b,
-              ease: "power2.out",
-              immediateRender: false,
-            },
-            o,
-          )
-          /* The frame itself keeps opening underneath, so the two are
-             moving together at the moment they cross over. */
-          .to(lastCell, { scale: 1.1, duration: 0.95 * b, ease: "power2.in" }, o)
-          /* The perforations and the physical edges recede. */
-          .to(reel, { opacity: 0, duration: 0.55 * b, ease: "power2.in" }, o + 0.22 * b)
-          /* The hero's own scrim arrives for the headline to sit on. */
-          .to(scrim, { opacity: 1, duration: 0.6 * b, ease: "power2.out" }, o + 0.42 * b)
-          /* Scroll, focus and the page's held-back entrances, while the
-             overlay is still there to dissolve through. */
-          .call(release, undefined, o + 0.8 * b)
-          .to(root, { opacity: 0, duration: 0.6 * b, ease: "power2.inOut" }, o + 0.86 * b)
-          .call(settle);
-      }
+        .to(leak, { opacity: 0, duration: 0.7, ease: "power2.in" }, 1.9);
 
-      /* Pre-built so skipping creates nothing at click time, which
-         keeps it inside this context and out of the way of cleanup. */
-      const bail = gsap.timeline({ paused: true });
-      bail.to(root, {
-        opacity: 0,
-        duration: reduced ? 0.001 : 0.32,
-        ease: "power2.out",
-        onStart: release,
-        onComplete: settle,
+      /* ---- SHOT B — the turn ---------------------------------------
+         Forty-odd degrees, eased in and out, so it arrives and departs
+         at rest: a controlled reveal rather than a turntable. The
+         elevation comes down with it, which is what makes the barrel
+         stop being seen from above and start being pointed at the
+         viewer.
+
+         This is the shot the knurling and the bevels are for — the
+         studio sweeps across the focus ring's ridges and down the top
+         plate's chamfer, and what the viewer reads out of that is the
+         material. */
+      const B = t(1.4);
+      tl.call(() => setPhase("turn"), undefined, B)
+        .to(state, {
+          orbit: turnTo,
+          duration: t(1.85),
+          ease: "power1.inOut",
+        }, B)
+        .to(state, {
+          elevation: 6.5,
+          duration: t(1.85),
+          ease: "power1.inOut",
+        }, B)
+        .to(state, { distance: 45, duration: t(1.85), ease: "sine.inOut" }, B);
+
+      /* ---- SHOT C — the push into the lens -------------------------
+         The camera walks in along the optical axis while the field of
+         view closes from 34° to 24°.
+
+         Both at once is the whole shot. Closing the distance alone
+         walks past the barrel; narrowing the field alone enlarges a
+         picture of a camera. Together they compress the barrel against
+         the front element and the glass comes at the viewer, which is
+         what being drawn into a lens actually looks like. The rig's
+         own `push` flattens the remaining elevation as it closes, so
+         the shot ends square on the axis. */
+      const C = t(3.1);
+      tl.call(() => setPhase("push"), undefined, C)
+        .to(state, { orbit: 0, duration: t(1.55), ease: "power2.inOut" }, C)
+        .to(state, { elevation: 1.2, duration: t(1.55), ease: "power2.inOut" }, C)
+        .to(state, { push: 1, duration: t(1.6), ease: "power2.in" }, C)
+        .to(state, { fov: 24, duration: t(1.6), ease: "power2.in" }, C)
+        /* The coating bloom intensifies as the element fills the frame,
+           because the key is now almost head-on to the glass. */
+        .to(state, { bloom: 0.55, duration: t(1.45), ease: "power2.in" }, C)
+        /* The titles step back before the light. */
+        .to(copy, {
+          opacity: 0,
+          y: -12,
+          duration: t(0.7),
+          ease: "power2.in",
+          stagger: 0.06,
+        }, C + t(0.85));
+
+      /* ---- SHOT D — the shutter ------------------------------------
+         The mechanical beat, and the only fast thing in the sequence.
+         The iris snaps shut in a tenth of a second, the body recoils
+         two millimetres and comes back, and the readout flicks to the
+         speed it fired at. Everything either side of this is slow, so
+         this reads as a mechanism rather than as an animation. */
+      const D = t(4.65);
+      tl.call(() => {
+        setPhase("fire");
+        shutterSound();
+        if (readStop) readStop.textContent = "1/125";
+      }, undefined, D)
+        .to(state, { iris: 0.04, duration: 0.09, ease: "power3.in" }, D)
+        .to(state, { kick: -0.22, duration: 0.05, ease: "power2.out" }, D)
+        .to(state, { kick: 0, duration: 0.3, ease: "elastic.out(1, 0.45)" }, D + 0.05)
+        /* And open again, a beat later and more slowly — a shutter
+           closes faster than it opens. */
+        .to(state, { iris: 1, duration: 0.5, ease: "power2.out" }, D + 0.16);
+
+      /* ---- SHOT E — the flash --------------------------------------
+         Out of the front element and nowhere else. The gradient's
+         centre and its transform origin are both written from where
+         the glass actually landed on screen the frame before it fires,
+         so the light expands out of the lens rather than out of the
+         middle of the window.
+
+         Short: up in a tenth of a second, down over half of one. A
+         pure white hold would be an overlay, and a long one would be
+         unpleasant — the core is peach, because a tube fires warm. */
+      const E = D + 0.14;
+      tl.call(() => {
+        const point = liveRig.lensPoint();
+        if (!point || !flash) return;
+        flash.style.setProperty("--fx", `${point.x}%`);
+        flash.style.setProperty("--fy", `${point.y}%`);
+        flash.style.transformOrigin = `${point.x}% ${point.y}%`;
+      }, undefined, E)
+        .fromTo(
+          flash,
+          { opacity: 0, scale: 0.55 },
+          { opacity: 1, scale: 1.25, duration: 0.11, ease: "power2.out" },
+          E,
+        )
+        /* The moment the camera is genuinely lost in its own light. */
+        .to(veil, { opacity: 0.88, duration: 0.07, ease: "none" }, E + 0.05)
+        .to(veil, { opacity: 0, duration: 0.42, ease: "power2.in" }, E + 0.14)
+
+        /* ---- SHOT F — the homepage, already behind the light -------
+           The hero comes up *inside* the flash's falloff while the
+           lens is still blown out, so the cut from the rendered scene
+           to the photograph happens where it cannot be seen. Then the
+           flash falls away and what is left is the hero.
+
+           The canvas goes with it. It is not faded under the hero —
+           the render loop is stopped the moment it is invisible, so
+           nothing is being drawn behind the photograph. */
+        .to(host, { opacity: 0, duration: 0.22, ease: "none", onComplete: stopLoop }, E + 0.07)
+        .to(finder, { opacity: 0, duration: 0.18, ease: "none" }, E + 0.05)
+        .to(heroLayer, { opacity: 1, duration: 0.2, ease: "none" }, E + 0.08)
+        .to(heroImg, { scale: 1, duration: 1.6, ease: "power2.out" }, E + 0.08)
+        .to(scrims, { opacity: 1, duration: 0.7, ease: "power2.out" }, E + 0.16)
+        .to(flash, { opacity: 0, duration: 0.5, ease: "power2.in" }, E + 0.15)
+
+        /* The overlay dissolves over a photograph identical to the one
+           underneath it, which is why this is invisible: `release`
+           fires as it starts, so the headline and the navigation are
+           already arriving on the real page behind. */
+        .to(root, {
+          opacity: 0,
+          duration: 0.55,
+          ease: "power2.inOut",
+          onStart: release,
+          onComplete: settle,
+        }, E + 0.62);
+
+      /* The readout's percentage is the real progress of the sequence,
+         which is the one honest thing a loading number can be. */
+      tl.eventCallback("onUpdate", () => {
+        if (readPct) {
+          readPct.textContent = `${Math.round(tl.progress() * 100)}%`;
+        }
       });
 
-      /** The pending self-fire, so a press or a skip can call it off. */
-      let autoFire: gsap.core.Tween | null = null;
-
-      const start = () => {
-        /* Idempotent by construction: the only way in is from a
-           playhead that has not left zero. So it does not matter
-           whether the clock got here first or the visitor did. */
-        if (handedOver || tl.progress() > 0 || tl.isActive()) return;
-        autoFire?.kill();
-        measure();
-        tl.play();
-      };
+      /* ---- LEAVING ------------------------------------------------- */
+      const bail = gsap.timeline({ paused: true });
+      bail
+        .to([host, copy, finder, leak, flash, veil], {
+          opacity: 0,
+          duration: 0.3,
+          ease: "power2.in",
+          onComplete: stopLoop,
+        })
+        .to(root, {
+          opacity: 0,
+          duration: 0.3,
+          ease: "power2.in",
+          onStart: release,
+          onComplete: settle,
+        }, 0.1);
 
       const bailOut = () => {
         if (handedOver || bail.progress() > 0) return;
-        autoFire?.kill();
         tl.pause();
         bail.play();
       };
 
-      captureRef.current = start;
       skipRef.current = bailOut;
-
-      /* Re-measure while the camera is still waiting. Once it is
-         running the geometry is committed — remeasuring mid-sequence
-         would move the ground under the film. */
-      const onResize = () => {
-        if (tl.progress() === 0 && !tl.isActive()) {
-          measure();
-          render();
-        }
-      };
-      window.addEventListener("resize", onResize);
 
       /* Escape is the keyboard's skip. */
       const onKeyDown = (event: KeyboardEvent) => {
@@ -547,45 +588,55 @@ export function CameraIntro() {
       };
       window.addEventListener("keydown", onKeyDown);
 
-      render();
+      const onResize = () => {
+        liveRig.resize(
+          host.clientWidth || window.innerWidth,
+          host.clientHeight || window.innerHeight,
+        );
+      };
+      window.addEventListener("resize", onResize);
 
-      /* ---------------------------------------------------------------
-         The sequence fires itself.
+      /* A tab that goes away stops costing a frame. GSAP's ticker
+         stops with it, so nothing drifts out of step. */
+      const onVisibility = () => {
+        if (document.hidden) stopLoop();
+        else if (!handedOver) startLoop();
+      };
+      document.addEventListener("visibilitychange", onVisibility);
 
-         Pressing the camera still starts the film at once and Escape
-         still skips, but nothing waits on either: a visitor who does
-         nothing at all gets the whole opening.
+      /* A lost context must not leave a frozen camera over the page. */
+      const onLost = (event: Event) => {
+        event.preventDefault();
+        stopLoop();
+        tl.pause();
+        settle();
+      };
+      liveRig.canvas.addEventListener("webglcontextlost", onLost);
 
-         A delayedCall rather than a setTimeout, for two reasons. It
-         belongs to this context, so the same revert that tears the
-         timeline down takes it with it — a replay or a double mount in
-         development cannot leave a stray shutter pending. And it runs
-         on GSAP's clock, which does not advance in a hidden tab, so a
-         link opened in the background finds the camera still waiting
-         instead of having played the film to an empty room.
-         --------------------------------------------------------------- */
-      autoFire = gsap.delayedCall(reduced ? 0.45 : AUTO_FIRE * beat, start);
+      const opening = gsap.delayedCall(HOLD, () => tl.play());
 
       return () => {
-        autoFire?.kill();
-        window.removeEventListener("resize", onResize);
+        opening.kill();
         window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("resize", onResize);
+        document.removeEventListener("visibilitychange", onVisibility);
+        liveRig.canvas.removeEventListener("webglcontextlost", onLost);
       };
     }, root);
 
     return () => {
-      captureRef.current = null;
       skipRef.current = null;
+      stopLoop();
       /* Reverts every tween this context created and every inline
          style they wrote, so a replay starts from the markup again. */
       ctx.revert();
-      film.style.clipPath = "";
+      rig?.dispose();
       for (const node of held) node.removeAttribute("inert");
       delete html.dataset.introLock;
       delete html.dataset.introReady;
       releaseScroll();
     };
-  }, [runId]);
+  }, [runId, hasGL]);
 
   /* The replay control in the footer, or anywhere else, asks for this. */
   useEffect(() => {
@@ -602,8 +653,6 @@ export function CameraIntro() {
     return () => window.removeEventListener(INTRO_REPLAY_EVENT, onReplay);
   }, []);
 
-  const running = phase !== "idle";
-
   return (
     <div ref={rootRef} className="intro-root" data-phase={phase}>
       <div
@@ -612,11 +661,93 @@ export function CameraIntro() {
         aria-label={`${intro.eyebrow} — opening sequence`}
         className="intro-stage"
       >
-        {/* ---- The hero, waiting inside the final frame ----
+        {/* ---- The rendered camera ---- */}
+        <div ref={canvasRef} aria-hidden className="intro-canvas" />
+
+        {/* ---- The drawn camera: what a browser without a graphics
+                context gets instead. Never both, and neither until
+                `hasGL` has been answered. ---- */}
+        {hasGL === false ? (
+          <div ref={stillRef} aria-hidden className="intro-still">
+            <RetroCamera />
+          </div>
+        ) : null}
+
+        {/* ---- The viewfinder ---------------------------------------
+            The furniture of a camera looking at something: corner
+            brackets, focus brackets, a frame scale and a readout. The
+            aperture and the shutter speed are the camera's; the
+            percentage is the real progress of the sequence. ---- */}
+        <div data-intro-finder aria-hidden className="intro-finder">
+          <svg viewBox="0 0 1024 672" preserveAspectRatio="xMidYMid meet">
+            <g
+              className="intro-finder-ink"
+              strokeWidth="1"
+              vectorEffect="non-scaling-stroke"
+            >
+              {/* The corners of the frame being composed. */}
+              <g strokeOpacity="0.55">
+                <path d="M62 128V62H128" />
+                <path d="M962 128V62H896" />
+                <path d="M62 544V610H128" />
+                <path d="M962 544V610H896" />
+              </g>
+              {/* The focus brackets, either side of the subject. */}
+              <g strokeOpacity="0.62">
+                <path d="M449 236H434V436H449" />
+                <path d="M575 236H590V436H575" />
+              </g>
+              {/* The frame scale: a tick every sixteenth, longer on
+                  the quarters, as a real scale is graduated. */}
+              <g strokeOpacity="0.3">
+                {Array.from({ length: 13 }, (_, i) => {
+                  const x = 338 + i * 29;
+                  const long = i % 3 === 0;
+                  return (
+                    <line
+                      key={x}
+                      x1={x}
+                      y1={520}
+                      x2={x}
+                      y2={long ? 492 : 506}
+                      strokeOpacity={long ? 0.75 : 0.3}
+                    />
+                  );
+                })}
+              </g>
+            </g>
+            <text x="62" y="172" className="intro-finder-name" fontSize="21">
+              {intro.finder.name}
+            </text>
+          </svg>
+
+          {/* The readout. In the markup rather than the drawing so it
+              is set in the site's own technical face at a controlled
+              size, instead of being scaled with the marks. */}
+          <p className="intro-read slate">
+            <span>{intro.finder.aperture}</span>
+            <span data-read-pct className="intro-finder-live">
+              0%
+            </span>
+            <span data-read-stop>{intro.finder.speed}</span>
+          </p>
+        </div>
+
+        {/* ---- Opening titles ---- */}
+        <div className="intro-copy">
+          <p data-intro-copy className="meta intro-eyebrow">
+            {intro.eyebrow}
+          </p>
+          <p data-intro-copy className="intro-tagline">
+            {intro.tagline}
+          </p>
+        </div>
+
+        {/* ---- The hero, waiting behind the light ----
             The same photograph, the same crop and the same scrim as the
-            hero below. It is what the last film frame opens into, and
-            what the overlay dissolves away over. Decorative: the real
-            hero carries the alt text. */}
+            hero below. It is what the flash resolves into, and what the
+            overlay dissolves away over. Decorative: the real hero
+            carries the alt text. */}
         <div ref={heroRef} aria-hidden className="intro-hero">
           <div data-intro-hero-img className="h-full w-full">
             <Figure
@@ -632,67 +763,12 @@ export function CameraIntro() {
           </div>
           <div
             data-intro-scrim
-            className="absolute inset-0 bg-gradient-to-b from-ink/75 via-ink/15 to-ink opacity-0"
+            className="absolute inset-0 opacity-0 [background:var(--grade-scrim)]"
           />
           <div
             data-intro-scrim
-            className="absolute inset-0 bg-[radial-gradient(142%_104%_at_50%_34%,transparent_52%,rgba(8,8,8,0.46)_100%)] opacity-0"
+            className="absolute inset-0 opacity-0 [background:var(--grade-vignette)]"
           />
-        </div>
-
-        {/* ---- Opening titles ---- */}
-        <div className="intro-copy">
-          <p data-intro-copy className="meta text-ash">
-            {intro.eyebrow}
-          </p>
-          <p
-            data-intro-copy
-            className="intro-tagline display mt-4 text-bone"
-          >
-            {intro.tagline}
-          </p>
-        </div>
-
-        {/* ---- The camera, and the film hanging from its slot ---- */}
-        <div ref={reelRef} className="intro-reel">
-          <div ref={camWrapRef} className="intro-cam">
-            <RetroCamera onCapture={capture} disabled={running} />
-          </div>
-
-          <div ref={filmRef} aria-hidden className="intro-film">
-            <div className="film-strip intro-strip">
-              <ol className="intro-strip-track">
-                {intro.frames.map((frame, index) => (
-                  <li key={frame.id} className="intro-frame">
-                    <span data-cell className="intro-cell">
-                      <span className="intro-cell-edge">
-                        <span>
-                          ŹPF · {String(index + 1).padStart(3, "0")}
-                        </span>
-                        <span>{intro.stock}</span>
-                      </span>
-                      <Figure
-                        asset={frame.image}
-                        ratio="16 / 9"
-                        sizes="(max-width: 48rem) 92vw, 46vw"
-                        quality={70}
-                        alt=""
-                        className="intro-cell-gate"
-                        position={frame.focal ?? "center"}
-                      />
-                      <span className="intro-cell-label">
-                        <span className="intro-cell-index">
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
-                        <span aria-hidden className="intro-cell-dash" />
-                        {frame.caption}
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
         </div>
 
         {/* ---- The light ---- */}
@@ -700,45 +776,106 @@ export function CameraIntro() {
         <div data-intro-flash aria-hidden className="intro-flash" />
         <div data-intro-veil aria-hidden className="intro-veil" />
 
-        {/* The sequence carries the site's own grain, so the film and
+        {/* The sequence carries the site's own grain, so the render and
             the page are the same surface. */}
         <div aria-hidden className="grain-layer intro-grain" />
 
-        {/* ---- Framing marks and the frame counter ---- */}
-        <div aria-hidden className="intro-marks">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-        <p aria-hidden className="intro-counter">
-          <span data-intro-counter>01</span>
-          <span className="text-ash">
-            {" / "}
-            {String(intro.frames.length).padStart(2, "0")}
-          </span>
-        </p>
-
-        {/* ---- Skip. Always reachable, first in the tab order after
-                the shutter, and never hidden behind a hover. ---- */}
+        {/* ---- Skip. Always reachable, first in the tab order, and
+                never hidden behind a hover. ---- */}
         <button
           type="button"
           onClick={skip}
           data-cursor-label="Skip"
           className="intro-skip meta"
         >
+          <span aria-hidden className="intro-skip-dot" />
           {intro.skip}
-          <span aria-hidden>→</span>
         </button>
 
         <p role="status" aria-live="polite" className="sr-only">
           {phase === "idle"
             ? ""
             : phase === "revealed"
-              ? "The film has opened. The website is ready."
-              : "Capturing. The film is opening."}
+              ? "The opening sequence has finished. The website is ready."
+              : "An opening sequence is playing. Skip to go straight to the website."}
         </p>
       </div>
     </div>
   );
+}
+
+/**
+ * ------------------------------------------------------------------
+ * THE SHUTTER, HEARD
+ * ------------------------------------------------------------------
+ * Synthesised rather than loaded: two short filtered noise bursts, a
+ * mirror and a blade, which is what a reflex shutter is. Nothing is
+ * downloaded for it and there is no audio asset in the project.
+ *
+ * It is strictly optional, and the sequence never waits on it. Every
+ * browser refuses to start an audio context before the visitor has
+ * interacted with the document, and that refusal is correct — nobody
+ * should be played a sound by a page they have just opened. So this
+ * asks whether there has already been an interaction, and if there has
+ * not, it does nothing at all and the shutter is silent. The
+ * mechanical beat of the shot — the iris, the recoil — is visual and
+ * always plays.
+ *
+ * In practice that means: silent on a cold load, audible on a replay
+ * from the footer or after any click, which is the right way round.
+ * ------------------------------------------------------------------
+ */
+function shutterSound() {
+  try {
+    const activation = (
+      navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }
+    ).userActivation;
+    /* No interaction yet: stay silent rather than firing a request the
+       browser will refuse and the console will complain about. */
+    if (activation && !activation.hasBeenActive) return;
+
+    const Ctor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!Ctor) return;
+
+    const audio = new Ctor();
+    if (audio.state === "suspended") void audio.resume();
+
+    const burst = (at: number, duration: number, hz: number, gain: number) => {
+      const frames = Math.max(1, Math.floor(audio.sampleRate * duration));
+      const buffer = audio.createBuffer(1, frames, audio.sampleRate);
+      const channel = buffer.getChannelData(0);
+      for (let i = 0; i < frames; i += 1) {
+        /* White noise under a steep decay: a click, not a hiss. */
+        channel[i] = (Math.random() * 2 - 1) * (1 - i / frames) ** 3;
+      }
+
+      const source = audio.createBufferSource();
+      source.buffer = buffer;
+
+      const band = audio.createBiquadFilter();
+      band.type = "bandpass";
+      band.frequency.value = hz;
+      band.Q.value = 1.1;
+
+      const level = audio.createGain();
+      level.gain.value = gain;
+
+      source.connect(band).connect(level).connect(audio.destination);
+      source.start(audio.currentTime + at);
+      source.stop(audio.currentTime + at + duration);
+    };
+
+    /* The mirror going up, then the blade crossing the gate. */
+    burst(0, 0.045, 2100, 0.1);
+    burst(0.055, 0.075, 1150, 0.075);
+
+    /* Let it go once it has played; an open context is a live
+       resource and this one has exactly one job. */
+    window.setTimeout(() => void audio.close().catch(() => {}), 900);
+  } catch {
+    /* Audio is a flourish. It is never worth an exception. */
+  }
 }

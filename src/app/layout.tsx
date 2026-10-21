@@ -1,31 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
 
 import { IntroBoot } from "@/components/intro/IntroBoot";
 import { Grain } from "@/components/ui/Grain";
 import { ogImage, site } from "@/data";
-import { adobeFontsHref } from "@/lib/fonts";
+import { fontVariables } from "@/lib/fonts";
 import "./globals.css";
 
 /**
- * The site's own typography is served by Adobe Fonts — see
- * src/lib/fonts.ts for the three families and the one-time web project
- * that serves them.
- *
- * Space Grotesk stays, self-hosted by Next, as the declared fallback
- * for the supporting stack. It is not the identity: it is what the
- * interface is set in before Acumin Pro arrives, or if it never does,
- * so the site is never one network failure away from Arial. The
- * display stack falls through to system high-contrast serifs instead,
- * which is why the editorial composition reads correctly either way.
+ * The site's typography is two families, self-hosted by next/font and
+ * emitted into the build — see src/lib/fonts.ts for what each one does
+ * and why they are the ones they are. There is no third-party font
+ * request on any page, so there is no stylesheet that can fail in
+ * front of a visitor and no account that has to be configured before
+ * the site has its own letterforms.
  */
-const grotesk = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "700"],
-  variable: "--font-grotesk",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -72,7 +61,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#080808",
+  themeColor: "#050505",
   colorScheme: "dark",
 };
 
@@ -82,22 +71,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
        hydrates, which means <html> legitimately carries attributes the
        server never wrote. That is the point of doing it there, so the
        difference is declared rather than reported. */
-    <html lang="en" className={grotesk.variable} suppressHydrationWarning>
-      <head>
-        {/* Adobe Fonts. Rendered only when a web project is configured,
-            so an unconfigured install makes no request at all rather
-            than waiting on a 404. The preconnects are worth it: the CSS
-            comes from use.typekit.net and the font files themselves
-            from p.typekit.net, so the second origin is needed before
-            the stylesheet has even been parsed. */}
-        {adobeFontsHref ? (
-          <>
-            <link rel="preconnect" href="https://use.typekit.net" crossOrigin="" />
-            <link rel="preconnect" href="https://p.typekit.net" crossOrigin="" />
-            <link rel="stylesheet" href={adobeFontsHref} />
-          </>
-        ) : null}
-      </head>
+    <html lang="en" className={fontVariables} suppressHydrationWarning>
       <body className="bg-ink text-bone antialiased">
         {/* Arms the opening sequence before anything paints. */}
         <IntroBoot />

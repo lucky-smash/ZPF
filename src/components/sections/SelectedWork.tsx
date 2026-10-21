@@ -27,7 +27,7 @@ export function SelectedWork() {
   ).length;
 
   return (
-    <section id="work" className="shell scroll-mt-24 border-t border-rule-soft py-20 md:py-32">
+    <section id="work" className="shell scroll-mt-24 border-t border-rule-soft beat">
       <SectionIntro index="04" eyebrow="Selected work" />
 
       <div className="mt-10 flex flex-col gap-6 md:mt-16 md:flex-row md:items-end md:justify-between">

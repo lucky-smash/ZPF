@@ -1,100 +1,111 @@
+import { Archivo, Courier_Prime } from "next/font/google";
+
 /**
  * ------------------------------------------------------------------
- * THE TYPOGRAPHIC IDENTITY — ADOBE FONTS
+ * THE TYPOGRAPHIC IDENTITY
  * ------------------------------------------------------------------
- * Three families carry the whole site, each with a job:
+ * Two families carry the whole site, each with one job:
  *
- *   Freight Display Pro  the voice. Editorial, literary, high contrast,
- *                        with a true italic used as an accent rather
- *                        than as decoration. Every oversized line on
- *                        the site is set in it.
- *   Acumin Pro           the apparatus. Navigation, body copy, buttons,
- *                        labels. A neo-grotesque with a wide weight
- *                        range, so the interface hierarchy comes out of
- *                        one family.
- *   Courier Prime        the technical record. The typeface screenplays
- *                        are written in, used only where the site is
- *                        reporting a specification: frame counters,
- *                        film stock, slate data, the camera's own
- *                        markings.
+ *   Archivo        the voice and the apparatus. A grotesque with two
+ *                  live axes — weight 100–900 and width 62–125% — so
+ *                  the display type, the navigation, the body copy and
+ *                  the tracked capitals all come out of one family and
+ *                  differ by axis rather than by typeface.
+ *   Courier Prime  the technical record. The typeface screenplays are
+ *                  written in, used only where the site is reporting a
+ *                  specification: the viewfinder readout, frame
+ *                  counters, film stock, the camera's own markings.
  *
- * ------------------------------------------------------------------
- * WHAT HAS TO BE SET UP ONCE, IN AN ADOBE ACCOUNT
- * ------------------------------------------------------------------
- * Adobe serves these from a "Web Project", which is created in the
- * account that holds the licence. It cannot be created from the
- * codebase, and a kit ID cannot be guessed — it is seven characters
- * issued by Adobe. So:
+ * WHY THESE, AND WHY NOT A SERIF
  *
- *   1. Sign in at https://fonts.adobe.com/
- *   2. Create a Web Project containing exactly the families and styles
- *      listed in ADOBE_FONTS.families below.
- *   3. Set the project's font-display to "swap" and add the production
- *      domain (plus localhost) to its domain list.
- *   4. Adobe shows an embed code containing
- *      https://use.typekit.net/XXXXXXX.css — copy the XXXXXXX.
- *   5. Put it in .env.local (see .env.local.example):
- *        NEXT_PUBLIC_ADOBE_FONTS_KIT_ID=XXXXXXX
+ * The art direction is drawn from kinoria.studio, and what that site
+ * is actually set in is verifiable rather than guessed — its document
+ * preloads one file and declares one family:
  *
- * Until that value is present the stylesheet is simply not requested
- * and the stacks in globals.css fall through to their fallbacks — the
- * site is complete and intentional either way, and sharpens into its
- * real identity the moment the kit ID lands. Nothing here is
- * conditional on the fonts having arrived.
+ *   <link rel="preload" as="font" type="font/woff2"
+ *         href="/fonts/Archivo/Archivo-Variable.woff2" crossorigin>
+ *   @font-face{font-family:"Archivo";
+ *     src:url("/fonts/Archivo/Archivo-Variable.woff2") format("woff2");
+ *     font-weight:100 900;font-stretch:62% 125%;font-display:block}
  *
- * Note: having these families synced to a Mac through Creative Cloud
- * does NOT make them available to a browser. The Web Project is what
- * serves them to the web, and it is a separate thing.
+ * …with `ui-monospace, Consolas, monospace` beside it for its
+ * viewfinder numbers. So the reference is a grotesque-and-mono system,
+ * not an editorial serif one, and its display moments are etched
+ * technical marks rather than high-contrast letterforms.
+ *
+ * This site is therefore set in the same grotesque — the real one, not
+ * an approximation of it — and keeps Courier Prime for the technical
+ * role the reference gives to a system mono, because a film company
+ * reporting a specification should do it in the typeface its scripts
+ * are written in.
+ *
+ * WHY NO ADOBE ACCOUNT IS NEEDED ANY MORE
+ *
+ * Both families are served from the project itself: next/font fetches
+ * them at build time, self-hosts them, and emits the @font-face rules
+ * with no runtime request to a third party. There is no kit to create,
+ * no key to paste, nothing to configure, and no network dependency
+ * that can fail in front of a visitor. NEXT_PUBLIC_ADOBE_FONTS_KIT_ID
+ * is no longer read anywhere; an existing value in .env.local is
+ * harmless and simply ignored.
+ *
+ * WHAT THE WIDTH AXIS IS FOR
+ *
+ * Headlines are set a little narrow (--display-stretch, 88% by
+ * default) and the tracked capitals a little wide. That is the one
+ * typographic move the reference's own font file invites by shipping
+ * the axis at all, and it is what keeps a single grotesque from
+ * reading as a single weight of a single grotesque.
  * ------------------------------------------------------------------
  */
 
-/** The Adobe Fonts web project. One value, from the environment. */
-const kitId = (process.env.NEXT_PUBLIC_ADOBE_FONTS_KIT_ID ?? "").trim();
+/**
+ * The voice and the apparatus.
+ *
+ * Variable, so no `weight` is declared: the whole 100–900 range is one
+ * file. `axes: ["wdth"]` adds the width axis to it — without that line
+ * Next serves the weight axis alone and every `font-stretch` in
+ * globals.css would silently do nothing.
+ */
+export const archivo = Archivo({
+  subsets: ["latin"],
+  axes: ["wdth"],
+  variable: "--font-archivo",
+  display: "swap",
+});
 
 /**
- * The families the web project must contain, with the exact styles the
- * site uses. Nothing else should be added to the project: every extra
- * style is another file the browser may fetch.
- *
- * `css` is the family name Adobe serves — always the lowercase slug,
- * which is what the font stacks in globals.css are written against.
+ * The technical record. One weight, upright: it never sets a paragraph
+ * and never needs an emphasis.
  */
-export const ADOBE_FONTS = {
-  kitId,
+export const courierPrime = Courier_Prime({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-courier",
+  display: "swap",
+});
+
+/** Both variable-name hooks, for the <html> class. */
+export const fontVariables = `${archivo.variable} ${courierPrime.variable}`;
+
+/**
+ * The families, their roles and the axis settings the site uses them
+ * at. Documentation that cannot drift: the values below are the ones
+ * globals.css is written against.
+ */
+export const TYPOGRAPHY = {
   families: [
     {
-      name: "Freight Display Pro",
-      css: "freight-display-pro",
-      slug: "freight-display-pro",
-      role: "Display — headlines, section titles, pull quotes",
-      styles: ["Light 300", "Light Italic 300", "Book 400", "Book Italic 400"],
-    },
-    {
-      name: "Acumin Pro",
-      css: "acumin-pro",
-      slug: "acumin-pro",
-      role: "Supporting — navigation, body copy, buttons, labels",
-      styles: ["Light 300", "Regular 400", "Medium 500"],
+      name: "Archivo",
+      role: "Display, navigation, body copy, tracked capitals",
+      axes: "wght 100–900, wdth 62–125%",
+      used: "wght 400/500/600, wdth 88% (display) and 100% (interface)",
     },
     {
       name: "Courier Prime",
-      css: "courier-prime",
-      slug: "courier-prime",
-      role: "Technical — frame counters, film stock, slate data",
-      styles: ["Regular 400"],
+      role: "Technical readout — viewfinder, frame counters, film stock",
+      axes: "none (static 400)",
+      used: "wght 400, uppercase, tabular figures",
     },
   ],
 } as const;
-
-/** True once a web project has actually been configured. */
-export const hasAdobeFonts = kitId.length > 0;
-
-/**
- * The kit stylesheet, or null when there is no kit. Returning null
- * rather than a broken URL is deliberate: a request to
- * use.typekit.net/.css would 404 on every page load and cost a
- * round trip to learn nothing.
- */
-export const adobeFontsHref = hasAdobeFonts
-  ? `https://use.typekit.net/${kitId}.css`
-  : null;

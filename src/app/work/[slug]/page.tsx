@@ -168,7 +168,7 @@ async function ProjectBody({ params }: PageProps) {
         <div className="shell grid grid-cols-1 gap-12 py-16 md:grid-cols-12 md:gap-10 md:py-24">
           <div className="md:col-span-7">
             <Reveal>
-              <p className="text-xl font-light leading-relaxed text-bone md:text-2xl">
+              <p className="measure-wide text-lg leading-relaxed text-dust md:text-xl">
                 {project.description}
               </p>
             </Reveal>
@@ -191,7 +191,7 @@ async function ProjectBody({ params }: PageProps) {
                     href={project.videoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="meta inline-flex items-center gap-4 bg-bone px-6 py-4 text-ink transition-colors duration-500 hover:bg-signal hover:text-bone"
+                    className="meta pill pill-solid group"
                   >
                     Watch the film <span aria-hidden>↗</span>
                   </a>
@@ -201,7 +201,7 @@ async function ProjectBody({ params }: PageProps) {
                     href={project.externalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="meta inline-flex items-center gap-4 border border-rule px-6 py-4 text-bone transition-colors duration-500 hover:border-bone"
+                    className="meta pill group"
                   >
                     View project <span aria-hidden>↗</span>
                   </a>

@@ -118,16 +118,129 @@ function cloudSprites(img: HTMLImageElement, count: number, rand: () => number) 
 
 /* ------------------------------------------------------------------
    THE BIRD
+   ------------------------------------------------------------------
    Built rather than imported, because the project has no licensed bird
-   model and an unlicensed one has no business on a client's site. It
-   is a real articulated body: wings that pivot at the shoulder, a
-   downstroke faster than the recovery, a twist through the beat, and a
-   tail. It reads as a bird in silhouette, which is what a bird at this
-   distance is — it is not feather-level photoreal, and swapping in a
-   rigged GLB is the one change that would make it so. See `BIRD_ASSET`
-   at the foot of this file.
+   model and an unlicensed one has no business on a client's site. See
+   `BIRD_ASSET` at the foot of this file for the one purchase that
+   would change that.
+
+   What a bird crossing a sky at this distance actually is, optically,
+   is a dark silhouette with a shape — so the whole of the realism is
+   in the shape and in how it bends, and none of it is in shading.
+   Four things carry it:
+
+    - THE WING IS TWO SEGMENTS, NOT A PLATE. An arm from the shoulder
+      and a hand from the wrist, parented, so the hand can lag the arm
+      through the stroke. A real wing bends at the wrist and the tip
+      arrives after the shoulder does; one rigid plate rolling about
+      its root is the single clearest tell that something is a model
+      of a bird rather than a bird, and no amount of easing on the
+      beat fixes it.
+    - THE PRIMARIES ARE SEPARATED. The hand's tip is notched into four
+      fingers. A gliding silhouette with split primaries is instantly
+      a bird; the same silhouette with a smooth tip is a dart.
+    - THE WINGS DROOP. Camber across the span, so the tips hang below
+      the shoulder line. With a few degrees of dihedral on the arm
+      this gives the shallow V with falling tips that a soaring bird
+      holds, which is the pose most of these are in most of the time.
+    - IT IS A SILHOUETTE, NOT A LIT OBJECT. See `birdMaterial`.
    ------------------------------------------------------------------ */
-function buildBird(material: THREE.Material, wingMaterial: THREE.Material) {
+
+/**
+ * Bows a flat wing panel downward across its span, and gives it a
+ * little camber front to back. Applied after the panel has been laid
+ * into the horizontal plane, so x is span and z is chord.
+ */
+function camber(geometry: THREE.BufferGeometry, span: number, drop: number) {
+  const position = geometry.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < position.count; i += 1) {
+    const x = position.getX(i);
+    const z = position.getZ(i);
+    const t = Math.min(1, Math.abs(x) / span);
+    /* Quadratic, so the inner wing is nearly flat and the fall is all
+       at the tip — which is where a wing's flex actually is. */
+    position.setY(i, position.getY(i) - drop * t * t - z * 0.06);
+  }
+  position.needsUpdate = true;
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+/** The inner wing: shoulder to wrist. Swept, and thickest at the root. */
+function armGeometry() {
+  const shape = new THREE.Shape();
+  shape.moveTo(0.02, -0.13);
+  shape.quadraticCurveTo(0.3, -0.16, 0.6, -0.12);
+  shape.lineTo(0.6, 0.13);
+  shape.quadraticCurveTo(0.32, 0.19, 0.04, 0.16);
+  shape.closePath();
+  const geometry = new THREE.ShapeGeometry(shape, 6);
+  geometry.rotateX(-Math.PI / 2);
+  return camber(geometry, 0.6, 0.02);
+}
+
+/**
+ * The outer wing: wrist to tip, with four primaries split out of it.
+ *
+ * Drawn as one outline that runs out along the leading edge and comes
+ * back in a zigzag, so the fingers are part of the panel rather than
+ * four separate meshes — one geometry, one draw call, and no seams
+ * where a finger meets the hand.
+ */
+function handGeometry() {
+  const shape = new THREE.Shape();
+  const SLOTS = 4;
+
+  /* Out along the leading edge to the tip. */
+  shape.moveTo(0, -0.12);
+  shape.quadraticCurveTo(0.34, -0.14, 0.66, -0.08);
+  shape.quadraticCurveTo(0.76, -0.05, 0.8, 0.0);
+
+  /* And back along the trailing edge in fingers: out to the end of
+     each primary, in to the notch between it and the next. */
+  for (let i = 0; i < SLOTS; i += 1) {
+    const t = i / SLOTS;
+    const next = (i + 1) / SLOTS;
+    /* The fingers shorten toward the body, as primaries do. */
+    const tip = 0.8 - t * 0.3;
+    const notch = 0.72 - next * 0.34;
+    shape.lineTo(tip, 0.04 + t * 0.03);
+    shape.lineTo(notch, 0.1 + t * 0.035);
+  }
+
+  shape.quadraticCurveTo(0.18, 0.17, 0, 0.14);
+  shape.closePath();
+
+  const geometry = new THREE.ShapeGeometry(shape, 4);
+  geometry.rotateX(-Math.PI / 2);
+  return camber(geometry, 0.8, 0.075);
+}
+
+/**
+ * The material a bird is made of.
+ *
+ * `MeshBasicMaterial`, not a lit one. A lit flat panel changes value
+ * as it rotates, so a flapping wing strobes between light and dark —
+ * which is exactly the plastic, cartoon read this is here to remove.
+ * A bird against a bright sky is not lit from the front at all: it is
+ * a hole in the light, and its tone is set by how much air is between
+ * it and the viewer and by nothing else.
+ *
+ * So each bird gets its own material and the loop writes its opacity
+ * from its depth. That is aerial perspective, and it is the thing that
+ * makes a far bird read as far away rather than as small.
+ */
+function birdMaterial() {
+  return new THREE.MeshBasicMaterial({
+    color: 0x0a0a0d,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 1,
+    depthWrite: false,
+  });
+}
+
+function buildBird(material: THREE.Material) {
   const bird = new THREE.Group();
 
   /* Body: a lathed spindle with a head bulge, a neck and a tail taper,
@@ -159,30 +272,49 @@ function buildBird(material: THREE.Material, wingMaterial: THREE.Material) {
   tailShape.lineTo(0, 0.5);
   tailShape.lineTo(-0.14, 0.42);
   tailShape.closePath();
-  const tail = new THREE.Mesh(new THREE.ShapeGeometry(tailShape), wingMaterial);
+  const tail = new THREE.Mesh(new THREE.ShapeGeometry(tailShape), material);
   tail.geometry.rotateX(-Math.PI / 2);
   tail.position.z = -0.92;
   bird.add(tail);
 
-  /* Wing: swept leading edge, tapered tip, a notch in the trailing
-     edge where the primaries separate. Drawn flat, then laid into the
-     horizontal plane so that rolling it about Z is a wingbeat. */
-  const wingShape = new THREE.Shape();
-  wingShape.moveTo(0.04, -0.1);
-  wingShape.quadraticCurveTo(0.5, -0.17, 0.95, -0.13);
-  wingShape.quadraticCurveTo(1.22, -0.09, 1.34, 0.01);
-  wingShape.quadraticCurveTo(1.05, 0.08, 0.74, 0.14);
-  wingShape.quadraticCurveTo(0.46, 0.2, 0.2, 0.15);
-  wingShape.quadraticCurveTo(0.09, 0.12, 0.04, -0.1);
-  const wingGeometry = new THREE.ShapeGeometry(wingShape, 10);
-  wingGeometry.rotateX(-Math.PI / 2);
+  /* The two wings, each an arm with a hand hung off its wrist. The
+     geometries are built once and shared by all four limbs — only the
+     transforms differ. */
+  const arm = armGeometry();
+  const hand = handGeometry();
 
-  const left = new THREE.Mesh(wingGeometry, wingMaterial);
-  const right = new THREE.Mesh(wingGeometry, wingMaterial);
-  right.scale.x = -1;
-  bird.add(left, right);
+  const wing = (sign: number) => {
+    /* The shoulder. Rolling this about Z is the wingbeat. */
+    const shoulder = new THREE.Object3D();
+    shoulder.scale.x = sign;
+    bird.add(shoulder);
 
-  return { bird, left, right, body };
+    const inner = new THREE.Mesh(arm, material);
+    shoulder.add(inner);
+
+    /* The wrist, out at the end of the arm. The hand hangs off it and
+       lags the stroke. */
+    const wrist = new THREE.Object3D();
+    wrist.position.x = 0.58;
+    shoulder.add(wrist);
+
+    const outer = new THREE.Mesh(hand, material);
+    wrist.add(outer);
+
+    return { shoulder, wrist };
+  };
+
+  const left = wing(1);
+  const right = wing(-1);
+
+  return {
+    bird,
+    left: left.shoulder,
+    right: right.shoulder,
+    leftWrist: left.wrist,
+    rightWrist: right.wrist,
+    geometries: [arm, hand],
+  };
 }
 
 /**
@@ -224,8 +356,14 @@ export function supportsWebGL() {
 
 interface Flier {
   group: THREE.Group;
-  left: THREE.Mesh;
-  right: THREE.Mesh;
+  /** The shoulders — rolled about Z, which is the beat. */
+  left: THREE.Object3D;
+  right: THREE.Object3D;
+  /** The wrists, which lag the shoulders through the stroke. */
+  leftWrist: THREE.Object3D;
+  rightWrist: THREE.Object3D;
+  /** This bird's own material, so its haze can be written per frame. */
+  material: THREE.MeshBasicMaterial;
   speed: number;
   beat: number;
   phase: number;
@@ -408,35 +546,41 @@ export function SkyFlight({ src }: { src: string }) {
          wingbeat rate, amplitude, cruising speed and wander, and they
          are never put back in formation — a flock whose beats line up
          is the other clear tell. */
-      const bodyMat = new THREE.MeshLambertMaterial({
-        color: 0x14121a,
-        side: THREE.DoubleSide,
-      });
-      const wingMat = new THREE.MeshLambertMaterial({
-        color: 0x1a1720,
-        side: THREE.DoubleSide,
-      });
-      disposables.push(bodyMat, wingMat);
-
       for (let i = 0; i < budget.birds; i += 1) {
-        const { bird, left, right } = buildBird(bodyMat, wingMat);
+        /* One material per bird, because its opacity is its distance —
+           see `birdMaterial`. Four meshes share it, so this is still
+           one material for a whole bird rather than one per limb. */
+        const material = birdMaterial();
+        disposables.push(material);
+
+        const built = buildBird(material);
+        for (const geometry of built.geometries) disposables.push(geometry);
+
         const far = i < Math.ceil(budget.birds / 2);
         const z = far ? -420 - rand() * 420 : -90 - rand() * 220;
-        const size = far ? 2.6 + rand() * 1.8 : 1.1 + rand() * 1.1;
+        /* Not all one species. A wingspan that varies by a factor of
+           two across the flock is what stops eight birds reading as
+           eight copies of one bird. */
+        const size = (far ? 2.6 + rand() * 1.8 : 1.1 + rand() * 1.1) *
+          (0.78 + rand() * 0.5);
 
-        bird.scale.setScalar(size);
-        bird.position.set(
+        built.bird.scale.setScalar(size);
+        built.bird.position.set(
           (rand() - 0.5) * Math.abs(z) * 0.9,
           (rand() - 0.3) * Math.abs(z) * 0.3 + 12,
           z,
         );
 
         const flier: Flier = {
-          group: bird,
-          left,
-          right,
+          group: built.bird,
+          left: built.left,
+          right: built.right,
+          leftWrist: built.leftWrist,
+          rightWrist: built.rightWrist,
+          material,
           speed: 5 + rand() * 9,
-          /* Small birds beat faster. */
+          /* Small birds beat faster, and a bird's beat rate is the
+             thing a viewer notices most about it. */
           beat: (far ? 1.5 : 2.4) + rand() * 1.4,
           phase: rand(),
           amp: 0.72 + rand() * 0.42,
@@ -444,11 +588,11 @@ export function SkyFlight({ src }: { src: string }) {
           timer: 1 + rand() * 4,
           wander: new THREE.Vector2(rand() * 6.28, rand() * 6.28),
           wanderRate: new THREE.Vector2(0.16 + rand() * 0.22, 0.1 + rand() * 0.16),
-          lastX: bird.position.x,
+          lastX: built.bird.position.x,
           bank: 0,
         };
         flock.push(flier);
-        scene.add(bird);
+        scene.add(built.bird);
       }
 
       built = true;
@@ -556,14 +700,54 @@ export function SkyFlight({ src }: { src: string }) {
           flier.phase += dt * flier.beat;
 
           const beat = wingbeat(flier.phase);
+
+          /* ---- The shoulders ----
+             A few degrees of dihedral at rest, so a gliding bird holds
+             the shallow V it should, and the beat swings about that. */
           const lift = 0.34 + beat * flier.amp * 0.8;
           flier.left.rotation.z = lift;
           flier.right.rotation.z = -lift;
-          /* The wing feathers through the stroke. */
+          /* The wing sweeps forward on the downstroke and back on the
+             recovery, which is what a wingbeat does in plan as well as
+             in elevation. */
           flier.left.rotation.y = beat * 0.2;
           flier.right.rotation.y = -beat * 0.2;
+
+          /* ---- The wrists ----
+             The hand lags the arm. Reading the beat a sixth of a cycle
+             behind the shoulder, and at a greater amplitude, gives the
+             wing its whip: the tip is still coming down as the
+             shoulder starts back up, which is the single most
+             recognisable thing about a bird in flight and the thing a
+             rigid wing can never do.
+
+             Folded back a little on the recovery, too — a bird closes
+             its hand on the upstroke so the wing has less to push
+             against on the way back. */
+          const lagged = wingbeat(flier.phase - 0.17);
+          const whip = lagged * flier.amp;
+          flier.leftWrist.rotation.z = whip * 0.55;
+          flier.rightWrist.rotation.z = -whip * 0.55;
+          flier.leftWrist.rotation.y = Math.max(0, lagged) * 0.4;
+          flier.rightWrist.rotation.y = -Math.max(0, lagged) * 0.4;
+
           /* And the whole body rides the beat a little. */
           g.position.y += beat * flier.amp * dt * 1.4;
+
+          /* ---- Aerial perspective ----
+             How dark the bird is, from how much air is in front of it.
+             A near bird is nearly black; one four hundred metres out
+             is a grey mark. It also fades up as it enters at the back
+             of the field and down as it leaves past the camera, so
+             nothing ever appears or vanishes as a hard pop.
+
+             Written here rather than tweened: it is a function of
+             position, and position changes every frame. */
+          const depth = Math.abs(g.position.z);
+          const haze = 1 - THREE.MathUtils.smoothstep(depth, 120, 900);
+          const entering = THREE.MathUtils.smoothstep(depth, NEAR - 6, NEAR + 46);
+          flier.material.opacity =
+            (0.34 + haze * 0.62) * entering * flight.spread;
 
           /* Bank into the turn, read from the turn itself. */
           const turn = g.position.x - flier.lastX;

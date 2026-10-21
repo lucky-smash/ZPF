@@ -62,25 +62,19 @@ export function Hero() {
           >
             <Link
               href={hero.primaryCta.href}
-              className="group inline-flex items-center justify-between gap-6 bg-bone px-6 py-4 text-ink transition-colors duration-500 hover:bg-signal hover:text-bone sm:justify-start"
+              className="pill pill-solid group"
             >
               <span className="meta">{hero.primaryCta.label}</span>
-              <span
-                aria-hidden
-                className="transition-transform duration-500 group-hover:translate-x-1"
-              >
+              <span aria-hidden data-arrow>
                 →
               </span>
             </Link>
             <Link
               href={hero.secondaryCta.href}
-              className="group inline-flex items-center justify-between gap-6 border border-rule px-6 py-4 text-bone transition-colors duration-500 hover:border-bone sm:justify-start"
+              className="pill group"
             >
               <span className="meta">{hero.secondaryCta.label}</span>
-              <span
-                aria-hidden
-                className="transition-transform duration-500 group-hover:translate-x-1"
-              >
+              <span aria-hidden data-arrow>
                 →
               </span>
             </Link>

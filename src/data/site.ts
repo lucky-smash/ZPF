@@ -238,41 +238,34 @@ export const filmRoll = {
 
 /**
  * ------------------------------------------------------------------
- * THE OPENING SEQUENCE — the retro camera intro
+ * THE OPENING SEQUENCE — the rendered camera
  * ------------------------------------------------------------------
- * Press the shutter → the flash fires → a strip of film feeds out of
- * the camera → the last frame opens out into the hero.
+ * A camera on a dark stage: the room comes up around it, it turns, the
+ * lens comes at the viewer, the shutter fires, and the homepage is
+ * behind the light. See src/components/intro/CameraIntro.tsx for the
+ * shot list and src/components/intro/CameraRig.ts for the camera.
  *
- * The frames are the thematic ones from the film roll above, so there
- * is one list of captions to keep honest rather than two. They describe
- * what ŹPF looks for when it films; none of them claims to be a
- * finished project.
- *
- * The last frame is deliberately the hero photograph, at the hero's own
- * focal point. When it expands past its film borders it *is* the hero
- * backdrop, so the sequence and the website never cut — they resolve
- * into one another. Change `hero.image` and this follows it.
+ * There is no copy to write for it beyond the slate in the corner and
+ * the numbers etched into the viewfinder. The sequence is about an
+ * object, and the less type stands in front of that object the better
+ * it works.
  * ------------------------------------------------------------------
  */
 export const intro = {
   eyebrow: `${site.name} — ${site.legalName}`,
   tagline: site.tagline,
-  /** Reads as a status now, not an instruction: the shutter fires on
-   *  its own a beat after the camera lands. */
-  prompt: "Capturing a story",
-  /** The accessible name of the shutter. It still works — pressing it
-   *  starts the film immediately instead of waiting for the beat. */
-  action: "Press the shutter to open the film now",
   skip: "Skip intro",
   replay: "Replay the opening",
-  stock: "35mm",
-  frames: [
-    ...filmRoll.frames.slice(0, 5),
-    {
-      id: "story",
-      caption: "The Story",
-      image: hero.image,
-      focal: "50% 42%",
-    },
-  ],
-};
+  /**
+   * The viewfinder's own markings. A real readout: the aperture the
+   * lens is drawn at, the speed the shutter fires at, and the name
+   * etched into the finder. The percentage beside them is written by
+   * the sequence and is its real progress, so the number a visitor
+   * sees is never a decoration.
+   */
+  finder: {
+    name: site.name,
+    aperture: "f 2.0",
+    speed: "1/60",
+  },
+} as const;

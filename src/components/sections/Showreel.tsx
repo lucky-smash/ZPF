@@ -11,7 +11,7 @@ import { showreel } from "@/data";
  */
 export function Showreel() {
   return (
-    <section id="showreel" className="shell py-20 md:py-28">
+    <section id="showreel" className="shell beat">
       <SectionIntro index="02" eyebrow="Showreel" />
 
       <div className="mt-10 flex flex-col gap-6 md:mt-14 md:flex-row md:items-end md:justify-between">

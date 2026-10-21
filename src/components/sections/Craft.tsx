@@ -13,7 +13,7 @@ import { assets, disciplines } from "@/data";
  */
 export function Craft() {
   return (
-    <section className="border-t border-rule-soft py-20 md:py-32">
+    <section className="border-t border-rule-soft beat">
       <div className="shell">
         <SectionIntro index="06" eyebrow="The craft" />
       </div>
