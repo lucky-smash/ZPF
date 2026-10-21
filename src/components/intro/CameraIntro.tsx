@@ -406,7 +406,7 @@ export function CameraIntro() {
          The dolly is slow and small, 58cm to 44. It is the shot
          settling, not a move the viewer is meant to notice. */
       tl.call(() => setPhase("reveal"), undefined, 0)
-        .to(state, { exposure: 1.66, duration: 1.2, ease: "power2.inOut" }, 0)
+        .to(state, { exposure: 1.48, duration: 1.2, ease: "power2.inOut" }, 0)
         .to(state, { key: 1, duration: 1.15, ease: "power2.out" }, 0.08)
         .to(state, { fill: 1, duration: 1.2, ease: "power1.out" }, 0.26)
         .to(state, { rim: 1, duration: 1.3, ease: "power2.out" }, 0.38)

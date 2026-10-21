@@ -180,6 +180,41 @@ function radialTexture(stops: [number, string][]): THREE.CanvasTexture {
   return texture;
 }
 
+/**
+ * The engraved scale that runs round a lens barrel.
+ *
+ * Ticks cut into dark paint, long at the marked stops and short
+ * between them. It is a texture rather than geometry because the ring
+ * it wraps is 70mm of circumference: cutting a hundred marks into it
+ * would cost more triangles than the rest of the camera put together,
+ * and at the size this is seen they would be a pixel each either way.
+ */
+function scaleTexture(): THREE.CanvasTexture {
+  const w = 1024;
+  const h = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.fillStyle = "#16151a";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#cdbb98";
+    /* Sixteen marks: eight stops, and a half between each. */
+    for (let i = 0; i < 16; i += 1) {
+      const x = Math.round((i / 16) * w);
+      const major = i % 2 === 0;
+      ctx.fillRect(x, major ? 16 : 26, major ? 4 : 3, major ? 30 : 14);
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.anisotropy = 4;
+  return texture;
+}
+
 /* ==================================================================
    GEOMETRY HELPERS
    ================================================================== */
@@ -548,7 +583,7 @@ export function createCameraRig(options: RigOptions): CameraRig {
   const bodyBump = keep(noiseTexture(256, 3));
   bodyBump.repeat.set(5, 5);
   const hideBump = keep(noiseTexture(256, 7));
-  hideBump.repeat.set(9, 9);
+  hideBump.repeat.set(16, 16);
 
   /** Painted magnesium alloy: the top plate, the baseplate, the shell. */
   const alloy = keep(
@@ -578,7 +613,7 @@ export function createCameraRig(options: RigOptions): CameraRig {
       roughness: 0.82,
       metalness: 0.04,
       bumpMap: hideBump,
-      bumpScale: 0.26,
+      bumpScale: 0.4,
       envMapIntensity: 0.78,
     }),
   );
@@ -586,15 +621,19 @@ export function createCameraRig(options: RigOptions): CameraRig {
   /** Machined aluminium: the lens rings, the dials. */
   const machined = keep(
     new THREE.MeshStandardMaterial({
-      /* Antique brass rather than neutral grey. A vintage barrel's
-         rings are brass under a worn finish, and a neutral metal on a
-         near-black body is the single thing that reads as moulded
-         plastic rather than machined. Kept muted: this is tarnished
-         brass catching a warm key, not gold. */
-      color: 0x9a8663,
-      roughness: 0.29,
+      /* Blackened metal, not brass.
+
+         These two rings are the focus and the aperture, and together
+         they are the largest metal surface on the object — putting
+         brass on them turned the whole lens gold, which is the one
+         thing a vintage barrel never is. A real one is blackened
+         alloy with its knurling catching the key, and the brass is
+         saved for the name ring. Warm in the shadow rather than
+         neutral, so it still belongs to the room. */
+      color: 0x55504a,
+      roughness: 0.3,
       metalness: 1,
-      envMapIntensity: 1.45,
+      envMapIntensity: 1.2,
     }),
   );
 
@@ -608,6 +647,38 @@ export function createCameraRig(options: RigOptions): CameraRig {
       roughness: 0.12,
       metalness: 1,
       envMapIntensity: 1.72,
+    }),
+  );
+
+  /** Aged brass. One ring, and the index mark's collar — that is the
+      whole of it. Restraint is the difference between an instrument
+      and an ornament. */
+  const brass = keep(
+    new THREE.MeshStandardMaterial({
+      color: 0x8c7549,
+      roughness: 0.34,
+      metalness: 1,
+      envMapIntensity: 1.3,
+    }),
+  );
+
+  /** The painted ring the aperture scale is engraved into. */
+  const engraved = keep(
+    new THREE.MeshStandardMaterial({
+      map: keep(scaleTexture()),
+      roughness: 0.56,
+      metalness: 0.18,
+      envMapIntensity: 0.8,
+    }),
+  );
+
+  /** The index mark. The one piece of colour on the whole object. */
+  const accent = keep(
+    new THREE.MeshStandardMaterial({
+      color: 0x8e2a1c,
+      roughness: 0.42,
+      metalness: 0.1,
+      envMapIntensity: 0.6,
     }),
   );
 
@@ -706,8 +777,12 @@ export function createCameraRig(options: RigOptions): CameraRig {
   /* The vulcanite, as panels standing just off the shell on both
      faces, so there is a real step where the covering ends. */
   for (const z of [FRONT + 0.015, -FRONT - 0.015]) {
+    /* Standing further proud than it did: at 0.12 deep the covering
+       was flush enough with the shell that the step where it ends
+       never caught the key, and the whole front read as one flat
+       slab of paint rather than as leather laid onto metal. */
     const panel = mesh(
-      shellGeometry(BODY.w - 0.5, BODY.h - 0.9, 0.12, 0.62, 0.05, 6),
+      shellGeometry(BODY.w - 0.5, BODY.h - 0.9, 0.3, 0.62, 0.07, 6),
       hide,
     );
     panel.position.z = z;
@@ -753,6 +828,16 @@ export function createCameraRig(options: RigOptions): CameraRig {
   rewind.position.set(5.1, BODY.h / 2 + 0.08, -0.9);
   rewind.rotation.x = Math.PI / 2;
 
+  /* Strap lugs. Small, and the single cheapest thing that says a
+     camera is carried rather than mounted — a 35mm body is never
+     without them, and their absence is read long before their
+     presence is noticed. */
+  for (const side of [-1, 1]) {
+    const lug = mesh(shellGeometry(1.0, 1.25, 0.46, 0.3, 0.1, 5), machined);
+    lug.rotation.y = Math.PI / 2;
+    lug.position.set(side * (BODY.w / 2 + 0.06), BODY.h / 2 - 1.5, 0);
+  }
+
   /* ---- THE LENS ---------------------------------------------------
      A stack of rings down the optical axis, at real radii. Read from
      the mount outward, this is: the mount flange, the aperture ring,
@@ -785,15 +870,23 @@ export function createCameraRig(options: RigOptions): CameraRig {
      finish and starts being a gear. */
   ring(knurledRing(3.52, 1.25, 104, 0.035), machined, FRONT + 1.15);
 
-  /* The waist, in paint rather than metal. */
-  ring(barrelGeometry(3.36, 3.36, 1.1, segments), alloy, FRONT + 2.3);
+  /* The waist: painted, and carrying the aperture scale. This is
+     where a real barrel puts its markings — between the ring you
+     click and the ring you turn. */
+  ring(barrelGeometry(3.38, 3.38, 1.2, 96), engraved, FRONT + 2.3);
+
+  /* And the index mark the scale is read against, at twelve o'clock
+     on the barrel. */
+  const index = mesh(barrelGeometry(0.11, 0.11, 0.3, 10, false), accent, lens);
+  index.position.set(0, 3.42, FRONT + 3.05);
+  index.rotation.x = Math.PI / 2;
 
   /* Focus ring: coarse, deep knurling with a long travel. */
   ring(knurledRing(3.58, 2.0, 76, 0.055), machined, FRONT + 3.85);
 
-  /* The name ring, polished, where a real lens carries its
-     specification. */
-  ring(barrelGeometry(3.42, 3.42, 0.52, segments), chrome, FRONT + 5.1);
+  /* The name ring, in brass, where a real lens carries its
+     specification — and the only brass on the camera. */
+  ring(barrelGeometry(3.42, 3.42, 0.52, segments), brass, FRONT + 5.1);
 
   /* The retaining rim that holds the element in. */
   ring(barrelGeometry(3.34, 3.3, 0.5, segments), alloy, FRONT + 5.6);
