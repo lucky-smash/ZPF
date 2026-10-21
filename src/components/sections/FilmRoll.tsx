@@ -18,6 +18,18 @@ const PHASE_A = 0.9; // leaving the previous section, strip enters
 const PHASE_B = 4.4; // the film travels through the gate
 const PHASE_C = 1.5; // the final frame opens out
 
+/* How far the page scrolls, in viewport heights, while the section is
+   pinned — phases B and C.
+
+   Phase A is deliberately not in it. A pin cannot engage until the
+   section's top reaches the top of the window, so anything keyed to it
+   leaves the whole approach — a full window of scrolling — showing an
+   empty 100vh stage: the previous section slides off the top and
+   nothing arrives behind it. Phase A runs on the approach instead, and
+   the pin is shortened by exactly its share of the timeline, so
+   everything that is still pinned scrubs at the rate it always did. */
+const PINNED_SCROLL = (2.4 * (PHASE_B + PHASE_C)) / (PHASE_A + PHASE_B + PHASE_C);
+
 /**
  * SECTION 3B — INSIDE THE FRAME
  *
@@ -97,42 +109,24 @@ export function FilmRoll() {
         }
       };
 
-      /* Read back inside onUpdate: the timeline's real duration is set
-         by its last tween, not by TOTAL, and scrub makes its time lag
-         the scroll. Driving the active frame from the timeline's own
-         clock keeps the highlight exactly in step with the strip. */
-      const clock: { tl?: gsap.core.Timeline } = {};
-
-      clock.tl = gsap.timeline({
+      /* ---- Phase A — leaving the previous section ----------------
+         Scrubbed across the approach: the section rises into the
+         window, and the strip rises and fades up inside it as it
+         comes. By the time the top edge reaches the top of the window
+         — the instant the pin takes over — the film is standing in the
+         gate, which is exactly the state phase B starts from. */
+      const entrance = gsap.timeline({
         defaults: { ease: "none" },
-        /* Fires on every render of the timeline, including while scrub
-           is still catching up, so the highlighted frame is always the
-           one actually sitting in the gate. */
-        onUpdate: () => {
-          const time = clock.tl?.time() ?? 0;
-          const progress = gsap.utils.clamp(0, 1, (time - PHASE_A) / PHASE_B);
-          setActive(Math.round(progress * (count - 1)));
-        },
         scrollTrigger: {
           trigger: section,
-          start: "top top",
-          end: () => `+=${window.innerHeight * 2.4}`,
-          pin: pin,
-          pinSpacing: true,
-          anticipatePin: 1,
-          /* Lenis already smooths the scroll value feeding this, so the
-             scrub only needs a light touch on top. */
+          start: "top bottom",
+          end: "top top",
           scrub: 0.5,
           invalidateOnRefresh: true,
-          /* Re-centre before anything is measured on a refresh. */
-          onRefreshInit: centreGate,
         },
       });
 
-      const timeline = clock.tl;
-
-      /* ---- Phase A — leaving the previous section ---- */
-      timeline
+      entrance
         .fromTo(
           roll,
           { yPercent: 38, opacity: 0 },
@@ -154,16 +148,50 @@ export function FilmRoll() {
         )
         .to(leakRef.current, { opacity: 0, duration: PHASE_A * 0.5 }, PHASE_A * 1.4);
 
+      /* Read back inside onUpdate: the timeline's real duration is set
+         by its last tween, not by TOTAL, and scrub makes its time lag
+         the scroll. Driving the active frame from the timeline's own
+         clock keeps the highlight exactly in step with the strip. */
+      const clock: { tl?: gsap.core.Timeline } = {};
+
+      clock.tl = gsap.timeline({
+        defaults: { ease: "none" },
+        /* Fires on every render of the timeline, including while scrub
+           is still catching up, so the highlighted frame is always the
+           one actually sitting in the gate. */
+        onUpdate: () => {
+          const time = clock.tl?.time() ?? 0;
+          const progress = gsap.utils.clamp(0, 1, time / PHASE_B);
+          setActive(Math.round(progress * (count - 1)));
+        },
+        scrollTrigger: {
+          trigger: section,
+          start: "top top",
+          end: () => `+=${window.innerHeight * PINNED_SCROLL}`,
+          pin: pin,
+          pinSpacing: true,
+          anticipatePin: 1,
+          /* Lenis already smooths the scroll value feeding this, so the
+             scrub only needs a light touch on top. */
+          scrub: 0.5,
+          invalidateOnRefresh: true,
+          /* Re-centre before anything is measured on a refresh. */
+          onRefreshInit: centreGate,
+        },
+      });
+
+      const timeline = clock.tl;
+
       /* ---- Phase B — the film travels through the gate ---- */
       timeline.fromTo(
         strip,
         { y: 0 },
         { y: () => -metrics().travel, duration: PHASE_B, force3D: true },
-        PHASE_A,
+        0,
       );
 
       /* ---- Phase C — the last frame opens out ---- */
-      const cStart = PHASE_A + PHASE_B;
+      const cStart = PHASE_B;
 
       timeline
         /* The strip recedes as the final image takes over. */
