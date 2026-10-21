@@ -816,28 +816,37 @@ export function createCameraRig(options: RigOptions): CameraRig {
      metal plate laid across the top of a black body, flat, with no
      prism rising out of the middle of it. The tall hump that used to
      sit here is the one feature a camera of this kind never has. */
+  /* Flush with the body on every side, not proud of it. Built wider
+     and deeper than the shell, the plate overhung all round and the
+     camera read as two stacked trays rather than as one object with a
+     metal top — which is what it looked like, and it was wrong. The
+     body's own corner radius is carried through so the silhouette is
+     continuous from plate to base. */
   const topPlate = mesh(
-    shellGeometry(BODY.w + 0.12, 1.5, BODY.d + 0.16, 0.5, 0.16, 6),
+    shellGeometry(BODY.w, 1.9, BODY.d, BODY.radius, 0.14, 6),
     chrome,
   );
-  topPlate.position.set(0, BODY.h / 2 - 0.1, 0);
+  topPlate.position.set(0, BODY.h / 2 - 0.62, 0);
 
   /* The finder housing: a low step along the back of the plate, where
      a rangefinder keeps its optics. Wide and shallow — it reads as
      part of the plate rather than as a tower on top of it. */
+  /* Small, and off to one side. A full-width slab behind the plate
+     was a third stacked tray; a rangefinder's housing is a modest
+     block, not another storey. */
   const finder = mesh(
-    shellGeometry(BODY.w - 1.6, 0.85, BODY.d - 0.6, 0.28, 0.1, 6),
+    shellGeometry(4.6, 0.9, BODY.d - 1.4, 0.24, 0.08, 6),
     chrome,
   );
-  finder.position.set(0, BODY.h / 2 + 1.06, -0.35);
+  finder.position.set(-1.2, BODY.h / 2 + 0.78, -0.3);
 
   const eyepiece = mesh(barrelGeometry(0.62, 0.62, 0.5, 20, false), matte);
-  eyepiece.position.set(-2.4, BODY.h / 2 + 1.06, -BODY.d / 2 - 0.26);
+  eyepiece.position.set(-1.2, BODY.h / 2 + 0.78, -BODY.d / 2 - 0.1);
 
   /* The accessory shoe, on the plate. */
   const shoe = mesh(shellGeometry(2.1, 1.3, 0.3, 0.1, 0.04, 4), chrome);
   shoe.rotation.x = -Math.PI / 2;
-  shoe.position.set(0.6, BODY.h / 2 + 1.63, -0.35);
+  shoe.position.set(3.0, BODY.h / 2 + 0.48, -0.3);
 
   /* ---- THE FINDER WINDOWS ----
      Three on the front of the plate, as the reference has them: the
@@ -848,38 +857,38 @@ export function createCameraRig(options: RigOptions): CameraRig {
      the plate is deeper than the body, so its front face is further
      forward, and a window placed at the body's own front sat in mid
      air above the metal rather than set into it. */
-  const windowZ = (BODY.d + 0.16) / 2 + 0.05;
+  const windowZ = BODY.d / 2 + 0.05;
   const finderWindow = mesh(
     shellGeometry(2.0, 1.0, 0.12, 0.12, 0.04, 4),
     glass,
   );
-  finderWindow.position.set(-4.3, BODY.h / 2 - 0.02, windowZ);
+  finderWindow.position.set(-4.3, BODY.h / 2 - 0.55, windowZ);
 
   const rangeWindow = mesh(shellGeometry(0.9, 0.7, 0.12, 0.1, 0.03, 4), glass);
-  rangeWindow.position.set(4.4, BODY.h / 2 - 0.02, windowZ);
+  rangeWindow.position.set(4.4, BODY.h / 2 - 0.55, windowZ);
 
   const illuminator = mesh(
     shellGeometry(0.62, 0.62, 0.12, 0.26, 0.03, 4),
     glass,
   );
-  illuminator.position.set(2.2, BODY.h / 2 - 0.02, windowZ);
+  illuminator.position.set(2.2, BODY.h / 2 - 0.55, windowZ);
 
   /* The top plate's controls: the shutter release on a collar, the
      mode dial beside it, the rewind knob on the far side. */
   const release = mesh(barrelGeometry(0.42, 0.42, 0.3, 20, false), chrome);
-  release.position.set(-3.9, BODY.h / 2 + 0.74, 1.0);
+  release.position.set(-4.4, BODY.h / 2 + 0.42, 1.1);
   release.rotation.x = Math.PI / 2;
 
   const collar = mesh(barrelGeometry(0.78, 0.78, 0.26, 24, false), machined);
-  collar.position.set(-3.9, BODY.h / 2 + 0.6, 1.0);
+  collar.position.set(-4.4, BODY.h / 2 + 0.3, 1.1);
   collar.rotation.x = Math.PI / 2;
 
   const dial = mesh(knurledRing(1.12, 0.5, 40, 0.03), machined);
-  dial.position.set(-5.4, BODY.h / 2 + 0.72, -0.9);
+  dial.position.set(-5.9, BODY.h / 2 + 0.4, -1.0);
   dial.rotation.x = Math.PI / 2;
 
   const rewind = mesh(knurledRing(0.95, 0.4, 34, 0.028), machined);
-  rewind.position.set(5.3, BODY.h / 2 + 0.7, -0.9);
+  rewind.position.set(5.6, BODY.h / 2 + 0.4, -1.0);
   rewind.rotation.x = Math.PI / 2;
 
   /* Strap lugs. Small, and the single cheapest thing that says a
