@@ -322,6 +322,12 @@ export function HeroSky({ image }: { image: ImageAsset }) {
           sizes="100vw"
           priority
           quality={68}
+          /* The hero carries its own scrim, and the frame the opening
+             sequence dissolves over must stay the identical picture:
+             a grade on one and not the other would make that
+             hand-over visible, which is the one thing it must not
+             be. */
+          grade={false}
           className="h-[115%] w-full"
           imageClassName="scale-[1.12]"
           position="50% 42%"
@@ -341,6 +347,7 @@ export function HeroSky({ image }: { image: ImageAsset }) {
               sizes="100vw"
               quality={68}
               alt=""
+              grade={false}
               className="h-full w-full"
               position="50% 38%"
             />

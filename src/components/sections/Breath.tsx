@@ -22,6 +22,7 @@ export function Breath() {
             ratio="auto"
             sizes="100vw"
             quality={70}
+            grade={false}
             className="h-[115%] w-full"
             position="50% 45%"
           />

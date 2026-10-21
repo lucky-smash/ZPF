@@ -21,49 +21,53 @@ npm run lint
 
 ---
 
-## Typography — one thing to set up
+## Typography
 
-The site's identity is carried by three families served by **Adobe Fonts**:
+Two families, both **self-hosted by `next/font`**. They are fetched at build
+time, emitted into the bundle and served from the site's own origin, so there
+is no third-party request on any page, no account to configure and nothing
+that can fail in front of a visitor.
 
-| Family | Role | Styles needed |
+| Family | Role | Axes used |
 | --- | --- | --- |
-| **Freight Display Pro** | the voice — every oversized line | Light 300 + Light Italic, Book 400 + Book Italic |
-| **Acumin Pro** | the apparatus — navigation, copy, buttons, labels | Light 300, Regular 400, Medium 500 |
-| **Courier Prime** | the technical record — frame counters, film stock, slate data | Regular 400 |
+| **Archivo** | the voice *and* the apparatus — headlines, navigation, body copy, tracked capitals | `wght` 400/500/600, `wdth` 88% (display) / 100–105% (interface) |
+| **Courier Prime** | the technical record — the viewfinder readout, frame counters, film stock | 400, uppercase, tabular figures |
 
-Adobe serves these from a **Web Project**, which has to be created once in the
-Adobe account that holds the licence. It cannot be created from the codebase
-and the kit ID cannot be guessed — it is seven characters issued by Adobe.
+### Why a grotesque, and why these
 
-1. Sign in at <https://fonts.adobe.com/> → **My Adobe Fonts → Web Projects →
-   Create a new project**.
-2. Add the three families above, ticking **only** the styles listed. Every
-   extra style is another file a visitor may download.
-3. Set the project's **font-display** to `swap`, and add your production domain
-   and `localhost` to its domain list.
-4. Adobe shows an embed code containing `https://use.typekit.net/XXXXXXX.css`.
-   Copy the `XXXXXXX`.
-5. Put it in `.env.local` (there is a template at `.env.local.example`):
+The art direction is drawn from [kinoria.studio](https://kinoria.studio/), and
+what that site is set in is verifiable rather than guessed at. Its document
+preloads one font file and declares one family:
 
-```bash
-# .env.local
-NEXT_PUBLIC_ADOBE_FONTS_KIT_ID=XXXXXXX
+```css
+@font-face{font-family:"Archivo";
+  src:url("/fonts/Archivo/Archivo-Variable.woff2") format("woff2");
+  font-weight:100 900;font-stretch:62% 125%;font-display:block}
 ```
 
-Restart `npm run dev` and the fonts are live. The integration lives in
-`src/lib/fonts.ts`; the stylesheet link is rendered in `src/app/layout.tsx`
-**only when the kit ID is present**, so an unconfigured install makes no
-network request at all rather than waiting on a 404.
+…with `ui-monospace, Consolas, monospace` beside it for its viewfinder
+numbers. So the reference is a **grotesque-and-mono** system, not an editorial
+serif one — its display moments are etched technical marks rather than
+high-contrast letterforms. This site is therefore set in the same grotesque,
+the real one, and keeps Courier Prime for the technical role the reference
+gives to a system mono: a film company reporting a specification should do it
+in the typeface its scripts are written in.
 
-**Until then, nothing is broken.** Each stack in `globals.css` names its Adobe
-family first and then falls through to faces of the same species — the display
-line falls to Hoefler Text / Baskerville / Georgia, the interface falls to
-Space Grotesk, which Next self-hosts. The layout, hierarchy, composition and
-line breaks are identical either way; only the letterforms change.
+### The width axis
 
-> Having these families synced to a Mac through Creative Cloud does **not**
-> make them available to a browser. The Web Project is a separate thing, and it
-> is the one that serves them to the web.
+Archivo ships two live axes, and the second one is the point. Headlines are
+set a little **narrow** (88%) so a long line holds together as one shape;
+tracked capitals are set a little **wide** (105%) so their counters survive at
+11px; and the one accented line in a composition opens out to **112%** instead
+of going italic. A width shift inside one family is a sharper distinction than
+a second typeface would be — and Archivo has no drawn italic in this build, so
+an italic accent would be a synthesised slant, which is worse than no accent.
+
+> **The Adobe Fonts kit is no longer required.** The site used to be set in
+> Freight Display Pro and Acumin Pro, served from an Adobe Web Project that
+> had to be created by hand before the site had its own letterforms.
+> `NEXT_PUBLIC_ADOBE_FONTS_KIT_ID` is no longer read anywhere; an existing
+> value in `.env.local` is harmless and simply ignored.
 
 ### The design tokens
 
@@ -74,19 +78,48 @@ variables and as Tailwind utilities (`font-display`, `font-sans`, `font-slate`):
 | --- | --- | --- |
 | `--font-display` | `.display`, `.hero-headline` | headlines, section titles, portfolio titles, pull quotes |
 | `--font-sans` | body default, `.meta` | body copy, navigation, buttons, eyebrows, indices |
-| `--font-slate` | `.slate` | frame counters, film stock, figure captions, the cursor label |
+| `--font-slate` | `.slate` | the viewfinder readout, frame counters, figure captions, the cursor label |
 
-`.display` takes its leading from `--display-leading` (default `1.02`), so a
-call site that needs a looser measure can set `[--display-leading:1.18]` and
-win deterministically rather than depending on utility order.
+`.display` takes three values from custom properties, so a call site can
+override any of them deterministically rather than depending on utility order:
+`--display-leading` (default `0.98`), `--display-track` (default `-0.022em`)
+and `--display-stretch` (default `88%`).
 
 The hero headline is its own block (`.hero-headline`) because the masked
-line-by-line entrance needs padding to clear a serif's ascenders and
+line-by-line entrance needs a little padding to clear ascenders and
 descenders, taken back out with a negative margin so the lines still sit
-tight. The third line is set in italic — the only italic above the fold, which
-is what makes it read as a cadence rather than as a style. Which line is
-accented is `hero.accent` in `src/data/site.ts`; it must match one of
-`hero.lines` exactly.
+tight. The third line is set at the wide width — the only width shift above
+the fold, which is what makes it read as a cadence rather than as a style.
+Which line is accented is `hero.accent` in `src/data/site.ts`; it must match
+one of `hero.lines` exactly.
+
+### Colour
+
+The palette is warm, and every value in it was read out of the reference's own
+document rather than sampled from a screenshot:
+
+| Token | Value | Role |
+| --- | --- | --- |
+| `--color-ink` | `#050505` | page black |
+| `--color-coal` | `#0b0908` | the warm step above it |
+| `--color-bone` | `#f2ede4` | primary type |
+| `--color-chalk` | `#e8e2d6` | inverted surfaces — what a pill fills with |
+| `--color-ash` | `#a39a8f` | secondary type |
+| `--color-stone` | `#5a534c` | muted type |
+| `--color-signal` | `#c8503c` | the accent, at rest — a shutter, not a brand colour |
+| `--color-ember` | `#e8563e` | the accent, lit |
+| `--color-sand` | `#ecd6a8` | etched marks, the viewfinder's ink |
+
+Four gradients are declared on `:root` and nothing else may invent one:
+`--grade-scrim` (behind hero type), `--grade-vignette` (the frame falling off),
+`--grade-photo` (laid over every photograph by `<Figure>`, which is what makes
+a monochrome Himalayan still and a rendered lens belong to one film) and
+`--grade-seam` (between sections).
+
+`--kpx` is the chrome scale **as a length**: 1px up to a 1920 × 1080 window and
+more above it, so the furniture of the opening sequence holds its proportion of
+the frame on a phone and on a 5K display alike. The reference does exactly the
+same thing for the same reason.
 
 ---
 
@@ -213,96 +246,158 @@ while the array is empty.
 
 ---
 
-## The opening sequence — camera, shutter, flash, film
+## The opening sequence — a rendered camera
 
-The first thing a visitor meets is a 35mm camera on a black screen.
-Pressing the shutter fires a flash, feeds a strip of film out of the
-camera body, runs six frames past the gate, and opens the last of them
-into the hero. One click; no scrolling.
+The first thing a visitor meets is a professional 35mm camera on a dark stage.
+The room comes up around it, it turns, the lens comes at the viewer, the
+shutter fires, and the home page is behind the light. **5.9 seconds**, no
+scrolling, nothing to click, and Skip or Escape leaves at any point.
 
 ```
-idle → shutterPressed → flash → filmReveal → websiteRevealed
+idle → reveal → turn → push → fire → revealed
 ```
 
-It is **layered over** the home page, not a route of its own. The
-finished page is rendered underneath it from the first byte.
+Six shots, placed at absolute times in `CameraIntro.tsx` so the whole sequence
+reads down the page as a shot list:
+
+| Shot | At | What happens |
+| --- | --- | --- |
+| **A** reveal | 0.0s | exposure, then key, then fill and rim. The object is in position from the first frame; what changes is the light on it. A slow 64 → 50cm dolly. |
+| **B** turn | 1.4s | a controlled ~47° sweep, eased in and out, with the elevation coming down. This is the shot the knurling and the bevels are for. |
+| **C** push | 3.1s | the camera walks in along the optical axis to 18cm while the field of view closes 34° → 24°. Both at once: closing the distance alone walks past the barrel, narrowing the field alone enlarges a picture. |
+| **D** fire | 4.65s | the iris snaps shut in 90ms, the body recoils 2mm and springs back, the readout flicks to 1/125. The only fast thing in the sequence. |
+| **E** flash | 4.79s | out of the front element and nowhere else — the gradient's centre and transform origin are written from where the glass actually landed on screen the frame before. Peach at the core, not white. |
+| **F** reveal | 4.87s | the hero comes up *inside* the flash's falloff while the lens is still blown out, so the cut from render to photograph happens where it cannot be seen. |
+
+It is **layered over** the home page, not a route of its own. The finished page
+is rendered underneath it from the first byte, and the photograph the flash
+resolves into is the hero's own file at the hero's own crop and scrim — so the
+hand-over is a dissolve between two identical images and the only visible
+change is the headline arriving.
 
 ### Editing it
 
-`src/data/site.ts` → `intro`:
+`src/data/site.ts` → `intro`. There is deliberately very little: the sequence
+is about an object, and the less type stands in front of that object the
+better it works.
 
 ```ts
 export const intro = {
   eyebrow: `${site.name} — ${site.legalName}`,
   tagline: site.tagline,
-  prompt: "Click to capture a story",
-  frames: [
-    ...filmRoll.frames.slice(0, 5),
-    { id: "story", caption: "The Story", image: hero.image, focal: "50% 42%" },
-  ],
+  skip: "Skip intro",
+  replay: "Replay the opening",
+  finder: { name: site.name, aperture: "f 2.0", speed: "1/60" },
 };
 ```
 
-Two things are deliberate:
+The percentage between the aperture and the shutter speed is written by the
+sequence and is its **real progress** — the one honest thing a loading number
+can be.
 
-- **The frames are the film roll's.** The same five thematic captions,
-  so there is one list to keep honest rather than two.
-- **The last frame is the hero photograph**, at the hero's own focal
-  point. When it expands past its film borders it *is* the hero
-  backdrop, so the sequence and the website resolve into one another
-  instead of cutting. Change `hero.image` and this follows it — but if
-  you ever give the final frame a different picture, the hand-over
-  becomes a dissolve between two photographs rather than a seamless one.
+Retiming is three constants in `CameraIntro.tsx` (`B`, `C`, `D`) plus the
+durations placed against them. Phones run the identical sequence at a 0.76
+stride.
+
+### Reload variation
+
+Small and bounded: a few degrees of opening bearing, a couple of degrees of
+elevation, a few degrees on where the turn ends. Enough that two reloads are
+visibly not the same take, never enough to put the camera somewhere it was not
+art-directed to be — a random angle is a random composition, and most of them
+are worse than the one that was designed.
 
 ### The camera
 
-`src/components/intro/RetroCamera.tsx`, plus the small `.cam-*` section in
-`globals.css`. It is **drawn in SVG** — there is no asset to download, nothing
-to 404, and it stays sharp at any size. Four things come from drawing it in
-vector rather than in CSS boxes:
+`src/components/intro/CameraRig.ts`. Built in geometry from measured
+proportions, in centimetres: a 13.8cm body, a 9.4cm plate, a 6.6cm lens
+diameter, a 6cm barrel. Working in real measurements is why the lens reads as a
+50mm prime rather than a toy telescope — the proportion between body and barrel
+is the single thing that most decides whether a drawn camera reads as a camera.
 
-- **Real optical geometry.** The barrel is concentric rings at measured radii,
-  and the knurling on the focus and aperture rings is a dashed stroke around
-  the annulus, so the ridges run radially the way machined ridges do.
-- **Surface.** One `feTurbulence` pass lays a fine irregular grain over the
-  whole body, under a drawn cross-hatch for the vulcanite covering. CSS cannot
-  make noise, and a perfectly smooth panel is what reads as plastic.
-- **One light.** A soft key from the upper left, a weak fill from the lower
-  right, a rim along the top edges, and a shadow on the ground underneath.
-- **Depth in the glass.** A well, a coating bloom off-centre, the studio
-  softbox reflected in it, and the barrel's own inner ring visible down inside.
+**It is not a photoreal model and should not be described as one.** A real
+camera carries moulding seams, worn edges, printed lettering, screws, dust in
+the barrel threads and a photographed environment in its glass, and none of
+those come out of thirty primitives however carefully they are lit. What it is
+instead is a correctly proportioned, correctly lit camera:
 
-It is a true front elevation, so it is handed the way a camera actually is when
-it is pointed at you: the photographer's right hand is the viewer's left, which
-puts the shutter release and the advance lever on the left of the drawing and
-the rewind knob on the right.
+- **The lens is a real stack of rings** at real radii — mount flange, aperture
+  ring, barrel waist, focus ring, name ring, retaining rim, element.
+- **The knurling is machined ridges in the mesh**, not a texture. A cylinder
+  whose radius rises and falls around its circumference, at 104 ridges on the
+  aperture ring and 76 on the focus ring. Below about forty it stops being a
+  machined finish and starts being a gear.
+- **The body is extruded from a rounded profile with a real bevel**, because a
+  chamfered edge catches the key as a bright line along the top plate, and a
+  `BoxGeometry` has no highlight along its edge at all.
+- **The glass is a shallow convex element** — about 5% sagitta, because a 50mm
+  front element is very nearly flat — in a physical material at `ior: 1.85`, so
+  it is nearly black where it faces the viewer and bright only at the rim and
+  where the softbox lands. There is a dark tapering well behind it with two
+  baffles, so there is real depth down the barrel rather than a lit disc.
+- **The iris is eight blades** whose geometry is offset to its inner edge, so
+  they slide out to the barrel wall and in across the axis without their far
+  corners ever standing outside the lens.
+- **It is lit by one studio**, pre-filtered into a cubemap from a scene of
+  emissive panels: a warm key softbox upper-left, a cool bounce lower-right, a
+  rim strip behind. That environment is why the metal has anything to reflect —
+  a physically based material in an unlit environment looks like matte plastic
+  however many point lights are added.
+- **The ground is a `ShadowMaterial`**, drawing only the shadow. It was a dark
+  standard material first, and that was wrong: the view looks along the plane at
+  about ten degrees, which is exactly where Fresnel is strongest, so even a
+  nearly black surface came back as a pale sheen brighter than the camera.
 
-Every dimension is a multiple of one unit, `--u`, declared on `.intro-reel`:
+Tone mapping is ACES filmic and the exposure is a tweened value, so the scene
+is brought up *out of black* rather than having a black overlay faded away —
+the difference between a camera being lit and a camera being uncovered. There
+is no post-processing: the flash is DOM, which is cheaper and far more
+controllable.
 
-```css
---u: min(clamp(2.7px, 0.88vw, 8px), 0.78vh);
-```
+**To go further**, buy a scanned or hand-built body with its maps — a `.glb`
+with albedo, roughness, metalness and normal textures, licensed for commercial
+web use. Parent it to `chassis` in place of the block that builds the shell and
+the lens; the studio, the three lights, the iris, the choreography and the lens
+anchor the flash comes out of all take a loaded model without changing. Keep it
+under ~2.5 MB — it is the first thing a visitor waits for. See `CAMERA_ASSET`
+at the foot of the file.
 
-Width-led, with a height ceiling so a short or landscape phone scales the whole
-object down rather than overflowing. Change that one line and the camera, its
-shutter, its lens and the film coming out of it all resize together.
+### When it cannot run
 
-The camera also wears the site's own typefaces — the maker's plate in the
-display face, the film stock and frame counter in the one screenplays are set
-in — so it changes with the typography rather than being a picture of a
-different brand.
+| Condition | What happens |
+| --- | --- |
+| `prefers-reduced-motion: reduce` | **No sequence at all.** The page is handed over on the first frame. An opening title is exactly the kind of thing the preference is about. |
+| No WebGL context | The drawn SVG camera (`RetroCamera.tsx`) is held for a beat and flashed through — the same shutter in two shots instead of six. A fallback that can itself fail is not one. |
+| Context lost mid-sequence | The sequence ends immediately and the website takes the screen. A frozen canvas is never left over the page. |
+| JavaScript off, or hydration never happens | The overlay is never displayed and the site is simply the site. |
 
-Two things move while it waits, and neither of them moves the camera: the key
-light travels the length of the top plate (`.cam-sheen`, 13s) and the coating
-bloom in the glass breathes (`.cam-coat`, 9s). That is the whole of "alive".
+### Why shaders are compiled before the first beat
 
-The whole camera is the button, which is how a camera behaves in the hand and
-gives touch a target the size of the viewport instead of a 40px dome. The
-release is still drawn, lit and pressed, so it is obvious where the camera is
-being pressed.
+`rig.warm()` calls `renderer.compile()` and renders one frame during the hold,
+before the timeline plays. A program compile is a synchronous stall of a few
+hundred milliseconds, GSAP's clock keeps running through it, and without this
+the timeline came out the other side already a second and a half in — the whole
+atmospheric reveal was skipped and the sequence began mid-turn. Measured: the
+turn arrived at 657ms into a timeline that places it at 1900. With the warm-up
+it arrives at 1916.
 
-The parts the sequence animates carry `data-cam-*` attributes, so the drawing
-can be reworked without touching the choreography in `CameraIntro.tsx`.
+`gsap.ticker.lagSmoothing(250, 25)` in `src/lib/gsap.ts` is the other half of
+that: past a 250ms stall a tick counts for 25ms, so a jank spike becomes a
+brief slow-down instead of a jump, for every animation on the site.
+
+### The shutter, heard
+
+Synthesised rather than loaded — two short filtered noise bursts, a mirror and
+a blade. Nothing is downloaded for it and there is no audio asset in the
+project.
+
+It is strictly optional and the sequence never waits on it. Every browser
+refuses to start an audio context before the visitor has interacted with the
+document, and that refusal is correct, so this checks `navigator.userActivation`
+and stays silent if there has been no interaction. **In practice: silent on a
+cold load, audible on a replay from the footer or after any click**, which is
+the right way round. The mechanical beat of the shot — the iris, the recoil —
+is visual and always plays.
 
 ### How it is armed, and why it can never trap anyone
 
@@ -444,13 +539,40 @@ left is the ambient drift the hero keeps |
 
 ### The birds
 
-Modelled and animated in code, because the project has no bird asset. Each one
-is a lathed body with a head, neck and tail taper, and two wings that pivot at
-the shoulder — with a **power stroke roughly a third of the beat and a slower
-recovery**, which is the single clearest difference between a bird and a sine
-wave. They flap in bursts and glide between, bank into their own turns, feather
-the wing through the stroke, and every one has its own beat rate, amplitude,
-speed and wander, so the flock never synchronises.
+Modelled and animated in code, because the project has no bird asset. What a
+bird crossing a sky at this distance actually is, optically, is a dark
+silhouette with a shape — so the whole of the realism is in the shape and in
+how it bends, and none of it is in shading. Four things carry it:
+
+- **The wing is two segments, not a plate.** An arm from the shoulder and a
+  hand from the wrist, parented, with the hand reading the beat a sixth of a
+  cycle behind the shoulder and at a greater amplitude. That lag is the wing's
+  whip: the tip is still coming down as the shoulder starts back up. It is the
+  most recognisable thing about a bird in flight and the thing a rigid wing
+  rolling about its root can never do — no amount of easing on the beat fixes
+  it.
+- **The primaries are separated.** The hand's tip is notched into four fingers,
+  drawn as part of the same outline so it stays one geometry. A gliding
+  silhouette with split primaries is instantly a bird; the same silhouette with
+  a smooth tip is a dart.
+- **The wings droop.** Camber across the span, quadratic so the inner wing is
+  nearly flat and the fall is all at the tip. With a few degrees of dihedral
+  this gives the shallow V with falling tips that a soaring bird holds.
+- **They are silhouettes, not lit objects.** `MeshBasicMaterial`, one per bird,
+  with its opacity written each frame from its depth. A lit flat panel changes
+  value as it rotates, so a flapping wing strobes between light and dark —
+  which is exactly the plastic, cartoon read this replaced. A bird against a
+  bright sky is a hole in the light, and its tone is set by how much air is in
+  front of it and nothing else. That is aerial perspective, and it is what
+  makes a far bird read as far away rather than as small.
+
+On top of that: a **power stroke roughly a third of the beat and a slower
+recovery** (a sine wave spends equal time on both and is the other clear tell),
+flapping in bursts with glides between, banking read out of their own turns,
+wingspans varying by a factor of two across the flock so eight birds are not
+eight copies of one bird, and per-bird beat rate, amplitude, speed and wander
+so they never synchronise. They fade up as they enter at the back of the field
+and down as they pass the camera, so nothing ever appears or vanishes as a pop.
 
 What they give is a believable silhouette. What they cannot give is feathers.
 
@@ -603,7 +725,6 @@ or your own API.
 
 ## Before going live
 
-- [ ] Create the Adobe Fonts Web Project and set `NEXT_PUBLIC_ADOBE_FONTS_KIT_ID`
       (see **Typography** above). Without it the site renders in its declared
       fallbacks — complete, but not in its own letterforms.
 - [ ] Replace the eight placeholder projects in `src/data/projects.ts`.
@@ -619,15 +740,17 @@ or your own API.
 ```
 src/
   app/
-    layout.tsx            Adobe Fonts, metadata, Open Graph, grain overlay
+    layout.tsx            fonts, metadata, Open Graph, grain overlay
     page.tsx              the ten sections, in narrative order
     work/[slug]/page.tsx  reusable project page template
     not-found.tsx         404
     sitemap.ts, robots.ts
   components/
     intro/                the opening sequence: IntroBoot arms it,
-                          RetroCamera draws the camera, CameraIntro
-                          owns the timeline and the state machine
+                          CameraRig builds and renders the camera,
+                          CameraIntro owns the shot list and the state
+                          machine, RetroCamera is the drawn fallback
+                          for a browser with no WebGL context
     sections/             one file per section of the home page
                           (FilmRoll.tsx is the pinned film sequence,
                           HeroSky.tsx the moving cloud environment,
@@ -635,7 +758,7 @@ src/
     site/                 header, footer, cursor, back-to-top
     ui/                   Figure, ProjectCard, Reveal, Parallax, form, player
   data/                   all editable content — start here
-  lib/fonts.ts            the Adobe Fonts web project, in one place
+  lib/fonts.ts            the two self-hosted families, in one place
   lib/gsap.ts             GSAP + ScrollTrigger registration
   lib/intro.ts            opening-sequence state, in one place
 public/

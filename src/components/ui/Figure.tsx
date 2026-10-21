@@ -17,6 +17,14 @@ interface FigureProps {
   alt?: string;
   /** Compression, 1-100. Lower it for images sitting under a scrim. */
   quality?: number;
+  /**
+   * The house grade, laid over the photograph. On by default.
+   *
+   * Turn it off for an image that already sits under a scrim of its
+   * own — the hero, the visual breath, the frame the opening sequence
+   * resolves into — where a second pass would only crush it.
+   */
+  grade?: boolean;
 }
 
 /**
@@ -36,6 +44,7 @@ export function Figure({
   position = "center",
   alt,
   quality,
+  grade = true,
 }: FigureProps) {
   return (
     <div
@@ -55,6 +64,22 @@ export function Figure({
         className={`object-cover ${imageClassName}`}
         style={{ objectPosition: position }}
       />
+      {/* ---- THE GRADE --------------------------------------------
+          One pass over every photograph on the site: warm where the
+          light is, cool and down in the shadow, from the same token
+          the rendered camera is lit to.
+
+          This is what makes a monochrome Himalayan still, a warm
+          corridor and a rendered lens belong to one film. It is
+          deliberately light — the brief is to grade the photography,
+          not to tint it — and it is here, in the one component every
+          image goes through, rather than at forty call sites. */}
+      {grade ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 [background:var(--grade-photo)]"
+        />
+      ) : null}
     </div>
   );
 }
