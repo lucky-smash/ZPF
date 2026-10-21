@@ -64,7 +64,7 @@ import * as THREE from "three";
    as a camera or as a rounded box: a real body is radiused at about
    8mm on a 94mm plate, and anything past about 10 starts to look
    moulded rather than cast. */
-const BODY = { w: 13.8, h: 9.4, d: 5.2, radius: 0.78, bevel: 0.26 };
+const BODY = { w: 15.6, h: 8.6, d: 5.0, radius: 0.46, bevel: 0.18 };
 
 /** The optical axis. Centred across the body, a little below middle. */
 const AXIS = { x: 0, y: -0.55 };
@@ -794,21 +794,33 @@ export function createCameraRig(options: RigOptions): CameraRig {
        was flush enough with the shell that the step where it ends
        never caught the key, and the whole front read as one flat
        slab of paint rather than as leather laid onto metal. */
+    /* The covering stops where the plate begins.
+
+       It used to run almost the full height of the body, so the chrome
+       top plate behind it showed only as a thin bright line along the
+       very top edge. In the reference the plate is a clear band across
+       the upper quarter of the front, and the covering starts beneath
+       it — that banding is the two-tone, and without it the camera is
+       just a dark box with a highlight on top. Sized to sit between
+       the plate above and the base strip below. */
     const panel = mesh(
-      shellGeometry(BODY.w - 0.5, BODY.h - 0.9, 0.3, 0.62, 0.07, 6),
+      shellGeometry(BODY.w - 0.3, BODY.h - 2.5, 0.3, 0.3, 0.07, 6),
       hide,
     );
-    panel.position.z = z;
+    panel.position.set(0, -0.72, z);
   }
 
-  /* The grip, on the viewer's left — this is a front elevation, so
-     the photographer's right hand is on that side. Proud of the front
-     plate, and swelling past the body's own edge. */
-  const grip = mesh(
-    shellGeometry(3.0, BODY.h - 0.5, BODY.d + 1.3, 0.7, 0.28, 8),
-    hide,
+  /* No grip. A moulded hand grip is a modern single-lens reflex
+     feature; the camera in the reference is flat-fronted, its covering
+     running unbroken from edge to edge, and the large rounded slab
+     that used to stand here was the loudest thing saying "not that
+     camera". What a rangefinder has along its foot instead is a thin
+     bright strip where the baseplate meets the covering. */
+  const baseStrip = mesh(
+    shellGeometry(BODY.w, 0.5, BODY.d, BODY.radius, 0.1, 5),
+    chrome,
   );
-  grip.position.set(-BODY.w / 2 + 1.3, -0.08, 0.2);
+  baseStrip.position.set(0, -BODY.h / 2 + 0.24, 0);
 
   /* ---- THE TOP PLATE ----
      This is the change that makes it a rangefinder rather than a
@@ -826,7 +838,7 @@ export function createCameraRig(options: RigOptions): CameraRig {
     shellGeometry(BODY.w, 1.9, BODY.d, BODY.radius, 0.14, 6),
     chrome,
   );
-  topPlate.position.set(0, BODY.h / 2 - 0.62, 0);
+  topPlate.position.set(0, BODY.h / 2 - 0.95, 0);
 
   /* The finder housing: a low step along the back of the plate, where
      a rangefinder keeps its optics. Wide and shallow — it reads as
@@ -857,21 +869,30 @@ export function createCameraRig(options: RigOptions): CameraRig {
      the plate is deeper than the body, so its front face is further
      forward, and a window placed at the body's own front sat in mid
      air above the metal rather than set into it. */
-  const windowZ = BODY.d / 2 + 0.05;
+  /* The dark panel inset into the left of the plate, which in the
+     reference is the widest single feature up there and reads before
+     any of the small windows do. */
+  const finderPanel = mesh(
+    shellGeometry(5.4, 1.15, 0.18, 0.14, 0.05, 4),
+    matte,
+  );
+  finderPanel.position.set(-4.4, BODY.h / 2 - 0.95, BODY.d / 2 + 0.06);
+
+  const windowZ = BODY.d / 2 + 0.15;
   const finderWindow = mesh(
     shellGeometry(2.0, 1.0, 0.12, 0.12, 0.04, 4),
     glass,
   );
-  finderWindow.position.set(-4.3, BODY.h / 2 - 0.55, windowZ);
+  finderWindow.position.set(-5.3, BODY.h / 2 - 0.95, windowZ);
 
   const rangeWindow = mesh(shellGeometry(0.9, 0.7, 0.12, 0.1, 0.03, 4), glass);
-  rangeWindow.position.set(4.4, BODY.h / 2 - 0.55, windowZ);
+  rangeWindow.position.set(5.2, BODY.h / 2 - 0.95, windowZ);
 
   const illuminator = mesh(
     shellGeometry(0.62, 0.62, 0.12, 0.26, 0.03, 4),
     glass,
   );
-  illuminator.position.set(2.2, BODY.h / 2 - 0.55, windowZ);
+  illuminator.position.set(-2.4, BODY.h / 2 - 0.95, windowZ);
 
   /* The top plate's controls: the shutter release on a collar, the
      mode dial beside it, the rewind knob on the far side. */
