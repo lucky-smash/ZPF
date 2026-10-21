@@ -609,12 +609,15 @@ export function createCameraRig(options: RigOptions): CameraRig {
          environment the covering fell to the same value as the stage
          behind it and took the whole silhouette with it — the body
          read as a hole rather than as leather. */
-      color: 0x1d1a1c,
-      roughness: 0.82,
+      /* Near-black. The two-tone only works if the body is actually
+         dark — lifted, it came out taupe beside the plate and the
+         camera stopped being black-and-silver. */
+      color: 0x100e10,
+      roughness: 0.84,
       metalness: 0.04,
       bumpMap: hideBump,
       bumpScale: 0.4,
-      envMapIntensity: 0.78,
+      envMapIntensity: 0.62,
     }),
   );
 
@@ -640,13 +643,23 @@ export function createCameraRig(options: RigOptions): CameraRig {
   /** Bright chrome: the name ring, the release, the shoe. */
   const chrome = keep(
     new THREE.MeshStandardMaterial({
-      /* Champagne, a half step off white, so the name ring and the
-         release separate from the brass below them without turning
-         into chrome. */
-      color: 0xd6c9ad,
-      roughness: 0.12,
-      metalness: 1,
-      envMapIntensity: 1.72,
+      /* Brushed bright metal. The reference is a rangefinder, and a
+         rangefinder's defining feature is the two-tone: a pale metal
+         top plate sitting on a black body. Warm enough to belong to
+         this room, but it has to read as silver against the covering,
+         not as another shade of the same dark. */
+      /* Not fully metallic, deliberately. A metalness of 1 has no
+         diffuse term at all: it can only show what is around it, and
+         in a dark studio that means it renders almost black — which
+         is exactly what happened when the top plate was first laid
+         in. Brushed aluminium in a dark room is not black, because
+         its finish scatters. Backing the metalness off and lifting
+         the base colour is what makes it read as the pale plate the
+         reference has sitting on a black body. */
+      color: 0xd9d4c8,
+      roughness: 0.34,
+      metalness: 0.72,
+      envMapIntensity: 1.35,
     }),
   );
 
@@ -797,35 +810,76 @@ export function createCameraRig(options: RigOptions): CameraRig {
   );
   grip.position.set(-BODY.w / 2 + 1.3, -0.08, 0.2);
 
-  /* The pentaprism. Narrower than the body and set back from the
-     front plate, with the eyepiece behind it. */
-  const prism = mesh(shellGeometry(5.0, 2.9, 4.3, 0.3, 0.18, 6), alloy);
-  prism.position.set(0, BODY.h / 2 + 1.05, 0.35);
+  /* ---- THE TOP PLATE ----
+     This is the change that makes it a rangefinder rather than a
+     single-lens reflex, and it is the whole silhouette: a bright
+     metal plate laid across the top of a black body, flat, with no
+     prism rising out of the middle of it. The tall hump that used to
+     sit here is the one feature a camera of this kind never has. */
+  const topPlate = mesh(
+    shellGeometry(BODY.w + 0.12, 1.5, BODY.d + 0.16, 0.5, 0.16, 6),
+    chrome,
+  );
+  topPlate.position.set(0, BODY.h / 2 - 0.1, 0);
 
-  const eyepiece = mesh(barrelGeometry(1.0, 1.0, 0.9, 24, false), matte);
-  eyepiece.position.set(0, BODY.h / 2 + 0.95, -1.75);
+  /* The finder housing: a low step along the back of the plate, where
+     a rangefinder keeps its optics. Wide and shallow — it reads as
+     part of the plate rather than as a tower on top of it. */
+  const finder = mesh(
+    shellGeometry(BODY.w - 1.6, 0.85, BODY.d - 0.6, 0.28, 0.1, 6),
+    chrome,
+  );
+  finder.position.set(0, BODY.h / 2 + 1.06, -0.35);
 
-  /* The accessory shoe on top of the prism. */
-  const shoe = mesh(shellGeometry(2.3, 1.5, 0.34, 0.1, 0.04, 4), chrome);
+  const eyepiece = mesh(barrelGeometry(0.62, 0.62, 0.5, 20, false), matte);
+  eyepiece.position.set(-2.4, BODY.h / 2 + 1.06, -BODY.d / 2 - 0.26);
+
+  /* The accessory shoe, on the plate. */
+  const shoe = mesh(shellGeometry(2.1, 1.3, 0.3, 0.1, 0.04, 4), chrome);
   shoe.rotation.x = -Math.PI / 2;
-  shoe.position.set(0, BODY.h / 2 + 2.56, 0.3);
+  shoe.position.set(0.6, BODY.h / 2 + 1.63, -0.35);
+
+  /* ---- THE FINDER WINDOWS ----
+     Three on the front of the plate, as the reference has them: the
+     bright-line finder at one end, the rangefinder window at the
+     other, and the small illuminator between. Dark glass, set into
+     the metal. */
+  /* On the front of the plate itself. They were floating above it:
+     the plate is deeper than the body, so its front face is further
+     forward, and a window placed at the body's own front sat in mid
+     air above the metal rather than set into it. */
+  const windowZ = (BODY.d + 0.16) / 2 + 0.05;
+  const finderWindow = mesh(
+    shellGeometry(2.0, 1.0, 0.12, 0.12, 0.04, 4),
+    glass,
+  );
+  finderWindow.position.set(-4.3, BODY.h / 2 - 0.02, windowZ);
+
+  const rangeWindow = mesh(shellGeometry(0.9, 0.7, 0.12, 0.1, 0.03, 4), glass);
+  rangeWindow.position.set(4.4, BODY.h / 2 - 0.02, windowZ);
+
+  const illuminator = mesh(
+    shellGeometry(0.62, 0.62, 0.12, 0.26, 0.03, 4),
+    glass,
+  );
+  illuminator.position.set(2.2, BODY.h / 2 - 0.02, windowZ);
 
   /* The top plate's controls: the shutter release on a collar, the
      mode dial beside it, the rewind knob on the far side. */
   const release = mesh(barrelGeometry(0.42, 0.42, 0.3, 20, false), chrome);
-  release.position.set(-3.6, BODY.h / 2 + 0.12, 0.55);
+  release.position.set(-3.9, BODY.h / 2 + 0.74, 1.0);
   release.rotation.x = Math.PI / 2;
 
   const collar = mesh(barrelGeometry(0.78, 0.78, 0.26, 24, false), machined);
-  collar.position.set(-3.6, BODY.h / 2 - 0.02, 0.55);
+  collar.position.set(-3.9, BODY.h / 2 + 0.6, 1.0);
   collar.rotation.x = Math.PI / 2;
 
   const dial = mesh(knurledRing(1.12, 0.5, 40, 0.03), machined);
-  dial.position.set(-5.2, BODY.h / 2 + 0.1, -1.0);
+  dial.position.set(-5.4, BODY.h / 2 + 0.72, -0.9);
   dial.rotation.x = Math.PI / 2;
 
   const rewind = mesh(knurledRing(0.95, 0.4, 34, 0.028), machined);
-  rewind.position.set(5.1, BODY.h / 2 + 0.08, -0.9);
+  rewind.position.set(5.3, BODY.h / 2 + 0.7, -0.9);
   rewind.rotation.x = Math.PI / 2;
 
   /* Strap lugs. Small, and the single cheapest thing that says a
@@ -859,8 +913,8 @@ export function createCameraRig(options: RigOptions): CameraRig {
   };
 
   /* The mount flange, standing off the body plate. */
-  ring(barrelGeometry(3.62, 3.62, 0.5, segments), machined, FRONT + 0.25);
-  const flangeFace = ring(faceGeometry(3.3, 3.62, segments), machined, FRONT + 0.5);
+  ring(barrelGeometry(3.0, 3.0, 0.5, segments), machined, FRONT + 0.25);
+  const flangeFace = ring(faceGeometry(2.72, 3.0, segments), machined, FRONT + 0.5);
   flangeFace.castShadow = false;
 
   /* Aperture ring: fine knurling, because it is clicked rather than
@@ -868,35 +922,35 @@ export function createCameraRig(options: RigOptions): CameraRig {
   /* Ridge counts are high on purpose. Real knurling on a 70mm barrel
      runs to a hundred-odd ridges; at forty it stops being a machined
      finish and starts being a gear. */
-  ring(knurledRing(3.52, 1.25, 104, 0.035), machined, FRONT + 1.15);
+  ring(knurledRing(2.9, 1.25, 96, 0.032), machined, FRONT + 1.15);
 
   /* The waist: painted, and carrying the aperture scale. This is
      where a real barrel puts its markings — between the ring you
      click and the ring you turn. */
-  ring(barrelGeometry(3.38, 3.38, 1.2, 96), engraved, FRONT + 2.3);
+  ring(barrelGeometry(2.78, 2.78, 1.2, 96), engraved, FRONT + 2.3);
 
   /* And the index mark the scale is read against, at twelve o'clock
      on the barrel. */
   const index = mesh(barrelGeometry(0.11, 0.11, 0.3, 10, false), accent, lens);
-  index.position.set(0, 3.42, FRONT + 3.05);
+  index.position.set(0, 2.82, FRONT + 3.05);
   index.rotation.x = Math.PI / 2;
 
   /* Focus ring: coarse, deep knurling with a long travel. */
-  ring(knurledRing(3.58, 2.0, 76, 0.055), machined, FRONT + 3.85);
+  ring(knurledRing(2.96, 2.0, 68, 0.05), machined, FRONT + 3.85);
 
   /* The name ring, in brass, where a real lens carries its
      specification — and the only brass on the camera. */
-  ring(barrelGeometry(3.42, 3.42, 0.52, segments), brass, FRONT + 5.1);
+  ring(barrelGeometry(2.84, 2.84, 0.52, segments), brass, FRONT + 5.1);
 
   /* The retaining rim that holds the element in. */
-  ring(barrelGeometry(3.34, 3.3, 0.5, segments), alloy, FRONT + 5.6);
-  const rim = ring(faceGeometry(2.92, 3.32, segments), alloy, FRONT + 5.85);
+  ring(barrelGeometry(2.76, 2.72, 0.5, segments), alloy, FRONT + 5.6);
+  const rim = ring(faceGeometry(2.4, 2.74, segments), alloy, FRONT + 5.85);
   rim.castShadow = false;
 
   /* The barrel's inside: a dark taper running back from the element,
      so there is real depth down the lens rather than a lit disc. */
   const well = ring(
-    barrelGeometry(2.9, 1.5, 4.6, segments),
+    barrelGeometry(2.38, 1.24, 4.6, segments),
     matteInner,
     FRONT + 3.4,
   );
@@ -907,15 +961,15 @@ export function createCameraRig(options: RigOptions): CameraRig {
   for (const [z, inner, outer] of [
     /* The first one reaches almost to the barrel wall on purpose: it
        is what hides the outer ends of the iris blades behind it. */
-    [FRONT + 3.3, 1.9, 3.1],
-    [FRONT + 2.1, 1.35, 2.0],
+    [FRONT + 3.3, 1.56, 2.56],
+    [FRONT + 2.1, 1.11, 1.64],
   ] as const) {
     const baffle = ring(faceGeometry(inner, outer, segments), matte, z);
     baffle.castShadow = false;
   }
 
   /* The rear element, deep in the barrel, catching a little light. */
-  const rear = ring(glassGeometry(1.5, 0.1, segments), glass, FRONT + 1.6);
+  const rear = ring(glassGeometry(1.24, 0.08, segments), glass, FRONT + 1.6);
   rear.castShadow = false;
 
   /* ---- THE IRIS ---------------------------------------------------
@@ -941,10 +995,10 @@ export function createCameraRig(options: RigOptions): CameraRig {
    * from the axis than the barrel is wide — so eight of them come
    * through the outside of the lens as a dark gear. Offset, the
    * geometry is bounded: at the widest setting here the farthest
-   * corner sits at 3.24, inside the barrel's own 3.3.
+   * corner sits at 2.66, inside the barrel's own 2.78.
    */
-  const bladeGeometry = keep(new THREE.PlaneGeometry(1.9, 1.5));
-  bladeGeometry.translate(0.95, 0, 0);
+  const bladeGeometry = keep(new THREE.PlaneGeometry(1.56, 1.24));
+  bladeGeometry.translate(0.78, 0, 0);
   const blades: THREE.Mesh[] = [];
   for (let i = 0; i < BLADES; i += 1) {
     const blade = new THREE.Mesh(bladeGeometry, matte);
@@ -957,7 +1011,7 @@ export function createCameraRig(options: RigOptions): CameraRig {
   /* ---- THE FRONT ELEMENT ----------------------------------------- */
   /* Sagitta of about 5% of the radius. A 50mm front element is very
      nearly flat; at the 15% it was first drawn at, it is a marble. */
-  const element = ring(glassGeometry(2.94, 0.15, segments), glass, GLASS_Z);
+  const element = ring(glassGeometry(2.4, 0.12, segments), glass, GLASS_Z);
   element.castShadow = false;
 
   /**
@@ -984,7 +1038,7 @@ export function createCameraRig(options: RigOptions): CameraRig {
      bright thing near the rim, and the element's own reflection of the
      softbox is what the viewer should mostly be seeing. */
   const bloom = new THREE.Mesh(
-    keep(new THREE.PlaneGeometry(2.7, 2.7)),
+    keep(new THREE.PlaneGeometry(2.22, 2.22)),
     keep(
       new THREE.MeshBasicMaterial({
         map: bloomTexture,
@@ -1148,7 +1202,7 @@ export function createCameraRig(options: RigOptions): CameraRig {
        Each blade slides out along its own radius. At 1 the blades are
        back at the barrel wall and the aperture is clear; at 0 they
        have crossed the axis and met. */
-    const reach = -0.3 + state.iris * 1.55;
+    const reach = -0.25 + state.iris * 1.27;
     for (let i = 0; i < blades.length; i += 1) {
       const angle = (i / blades.length) * Math.PI * 2;
       blades[i].position.set(Math.cos(angle) * reach, Math.sin(angle) * reach, 0);
