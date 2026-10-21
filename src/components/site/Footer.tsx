@@ -19,7 +19,12 @@ export async function Footer() {
 
   return (
     <footer className="border-t border-rule-soft">
-      <div className="shell flex flex-col gap-10 py-12 md:flex-row md:items-end md:justify-between md:py-16">
+      {/* The deeper bottom padding is not decoration: the back-to-top
+         control is fixed to the bottom right of the viewport, so
+         whatever sits last in the document is underneath it once the
+         page is scrolled to the end. On a phone that was the
+         copyright, wrapped to two lines and missing its last word. */}
+      <div className="shell flex flex-col gap-10 pb-28 pt-12 md:flex-row md:items-end md:justify-between md:pb-20 md:pt-16">
         <div>
           <Image
             src={brandMark.src}
@@ -31,7 +36,10 @@ export async function Footer() {
           <p className="meta mt-5 text-ash">{site.footerNote}</p>
         </div>
 
-        <div className="flex flex-col gap-6 md:items-end">
+        {/* The back-to-top control is fixed to the bottom right, so the
+           last line here is padded clear of it rather than running
+           underneath and losing its final word. */}
+        <div className="flex flex-col gap-6 pr-14 md:items-end md:pr-16 lg:pr-20">
           <nav aria-label="Footer">
             <ul className="flex flex-wrap gap-x-8 gap-y-3">
               {[

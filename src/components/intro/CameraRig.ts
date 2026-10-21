@@ -373,7 +373,7 @@ function studioEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture {
   };
 
   /* The key softbox: large, close, upper left. */
-  panel(0xecd6a8, 5.2, 60, 40, (mesh) => {
+  panel(0xecd6a8, 6.4, 60, 40, (mesh) => {
     mesh.position.set(-42, 34, 26);
     mesh.lookAt(0, 0, 0);
   });
@@ -386,8 +386,8 @@ function studioEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture {
 
   /* The rim strip: narrow, high, behind — this is what draws the
      bright line along the top plate and the top of the barrel. */
-  panel(0xfff4e2, 7.5, 86, 7, (mesh) => {
-    mesh.position.set(0, 30, -42);
+  panel(0xffeccd, 11.5, 92, 11, (mesh) => {
+    mesh.position.set(0, 28, -42);
     mesh.lookAt(0, 0, 0);
   });
 
@@ -558,44 +558,56 @@ export function createCameraRig(options: RigOptions): CameraRig {
          come out as one flat shape, and the object stops reading as
          metal. This is still a dark grey camera; it is just one that
          has somewhere to go when the key lands on it. */
-      color: 0x26242a,
-      roughness: 0.42,
-      metalness: 0.66,
+      color: 0x2c2a30,
+      roughness: 0.4,
+      metalness: 0.68,
       bumpMap: bodyBump,
       bumpScale: 0.07,
-      envMapIntensity: 1.05,
+      envMapIntensity: 1.26,
     }),
   );
 
   /** Vulcanite: the covering on the front and back of the body. */
   const hide = keep(
     new THREE.MeshStandardMaterial({
-      color: 0x141214,
-      roughness: 0.86,
+      /* Lifted, and given more of the room. At 0x141214 with half the
+         environment the covering fell to the same value as the stage
+         behind it and took the whole silhouette with it — the body
+         read as a hole rather than as leather. */
+      color: 0x1d1a1c,
+      roughness: 0.82,
       metalness: 0.04,
       bumpMap: hideBump,
-      bumpScale: 0.22,
-      envMapIntensity: 0.5,
+      bumpScale: 0.26,
+      envMapIntensity: 0.78,
     }),
   );
 
   /** Machined aluminium: the lens rings, the dials. */
   const machined = keep(
     new THREE.MeshStandardMaterial({
-      color: 0x8e8a82,
-      roughness: 0.31,
+      /* Antique brass rather than neutral grey. A vintage barrel's
+         rings are brass under a worn finish, and a neutral metal on a
+         near-black body is the single thing that reads as moulded
+         plastic rather than machined. Kept muted: this is tarnished
+         brass catching a warm key, not gold. */
+      color: 0x9a8663,
+      roughness: 0.29,
       metalness: 1,
-      envMapIntensity: 1.25,
+      envMapIntensity: 1.45,
     }),
   );
 
   /** Bright chrome: the name ring, the release, the shoe. */
   const chrome = keep(
     new THREE.MeshStandardMaterial({
-      color: 0xcfcabf,
-      roughness: 0.13,
+      /* Champagne, a half step off white, so the name ring and the
+         release separate from the brass below them without turning
+         into chrome. */
+      color: 0xd6c9ad,
+      roughness: 0.12,
       metalness: 1,
-      envMapIntensity: 1.5,
+      envMapIntensity: 1.72,
     }),
   );
 

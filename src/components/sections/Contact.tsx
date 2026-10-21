@@ -30,8 +30,12 @@ export function Contact() {
       </Reveal>
 
       <div className="mt-14 grid grid-cols-1 gap-14 md:mt-20 md:grid-cols-12 md:gap-10">
-        {/* Direct routes. */}
-        <div className="md:col-span-5">
+        {/* Direct routes. Pinned alongside the form on desktop: the
+           enquiry fields run some 400px past the end of this column,
+           and letting it scroll away left a void down the left of the
+           section. Sticky keeps the two balanced without forcing them
+           to the same height. */}
+        <div className="md:col-span-5 md:sticky md:top-28 md:self-start">
           <Reveal stagger={0.08}>
             <p className="meta border-b border-rule-soft pb-4 text-ash">
               For work queries

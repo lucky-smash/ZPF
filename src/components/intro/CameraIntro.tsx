@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { Figure } from "@/components/ui/Figure";
 import { hero, intro } from "@/data";
@@ -109,30 +114,36 @@ export function CameraIntro() {
    * Whether this browser can give a graphics context — and therefore
    * which camera is in the markup, the rendered one or the drawn one.
    *
-   * It has to be state set in an effect rather than a call during
-   * render, because the answer differs between the server and the
-   * browser: there is no `document` to probe on the server, so a
-   * render-time call says "no WebGL" there and "yes" here, and React
-   * rightly refuses to reconcile two different trees. So the first
-   * commit renders neither camera, this lands a frame later, and the
-   * sequence below starts on the commit after that.
+   * It cannot be a call during render, because the answer differs
+   * between the server and the browser: there is no `document` to
+   * probe on the server, so a render-time call says "no WebGL" there
+   * and "yes" here, and React rightly refuses to reconcile two
+   * different trees.
    *
-   * Nothing is lost in that frame. The overlay is `display: none`
-   * until the boot script's attribute says otherwise, the scroll was
-   * locked before the first paint, and the photograph the sequence
-   * resolves into is in the markup from the first byte either way.
+   * `useSyncExternalStore` is the primitive for exactly that — a
+   * value that only the browser can know. It hydrates against the
+   * server snapshot (`null`, which renders neither camera), then
+   * re-renders with the real one. No mismatch, and no state written
+   * from inside an effect.
+   *
+   * Nothing is lost in that extra commit. The overlay is
+   * `display: none` until the boot script's attribute says otherwise,
+   * the scroll was locked before the first paint, and the photograph
+   * the sequence resolves into is in the markup from the first byte
+   * either way.
    */
-  const [hasGL, setHasGL] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    setHasGL(supportsWebGL());
-  }, []);
+  const hasGL = useSyncExternalStore<boolean | null>(
+    neverChanges,
+    () => supportsWebGL(),
+    () => null,
+  );
 
   /* The one control the sequence exposes. Held in a ref because the
      timeline that owns it is built inside a GSAP context, and React's
      handler must reach it without re-rendering. */
+  /* Still held, because Escape and the watchdog both reach for it.
+     Only the button that used to call it is gone. */
   const skipRef = useRef<(() => void) | null>(null);
-  const skip = useCallback(() => skipRef.current?.(), []);
 
   useIsomorphicLayoutEffect(() => {
     /* Still waiting to know which camera is in the markup. */
@@ -395,7 +406,7 @@ export function CameraIntro() {
          The dolly is slow and small, 58cm to 44. It is the shot
          settling, not a move the viewer is meant to notice. */
       tl.call(() => setPhase("reveal"), undefined, 0)
-        .to(state, { exposure: 1.32, duration: 1.2, ease: "power2.inOut" }, 0)
+        .to(state, { exposure: 1.66, duration: 1.2, ease: "power2.inOut" }, 0)
         .to(state, { key: 1, duration: 1.15, ease: "power2.out" }, 0.08)
         .to(state, { fill: 1, duration: 1.2, ease: "power1.out" }, 0.26)
         .to(state, { rim: 1, duration: 1.3, ease: "power2.out" }, 0.38)
@@ -755,6 +766,7 @@ export function CameraIntro() {
               ratio="auto"
               sizes="100vw"
               quality={68}
+              grade={false}
               alt=""
               className="h-[115%] w-full"
               imageClassName="scale-[1.12]"
@@ -780,28 +792,32 @@ export function CameraIntro() {
             the page are the same surface. */}
         <div aria-hidden className="grain-layer intro-grain" />
 
-        {/* ---- Skip. Always reachable, first in the tab order, and
-                never hidden behind a hover. ---- */}
-        <button
-          type="button"
-          onClick={skip}
-          data-cursor-label="Skip"
-          className="intro-skip meta"
-        >
-          <span aria-hidden className="intro-skip-dot" />
-          {intro.skip}
-        </button>
+        {/* There is no visible skip control: the opening frame is the
+            composition, and a button in the corner of it was the one
+            thing asking to be looked at instead of the camera.
 
+            The way out is still there and still complete — Escape
+            leaves at any point, the watchdog in the boot script hands
+            the page back if the sequence never comes alive, and the
+            sequence ends on its own. Only the chrome is gone. */}
         <p role="status" aria-live="polite" className="sr-only">
           {phase === "idle"
             ? ""
             : phase === "revealed"
               ? "The opening sequence has finished. The website is ready."
-              : "An opening sequence is playing. Skip to go straight to the website."}
+              : "An opening sequence is playing. Press Escape to go straight to the website."}
         </p>
       </div>
     </div>
   );
+}
+
+/**
+ * The answer never changes within a document, so there is nothing to
+ * subscribe to and nothing to tear down.
+ */
+function neverChanges() {
+  return () => {};
 }
 
 /**

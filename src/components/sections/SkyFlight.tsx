@@ -83,26 +83,45 @@ function cloudSprites(img: HTMLImageElement, count: number, rand: () => number) 
       const x = (index % SIZE) - half;
       const y = Math.floor(index / SIZE) - half;
 
-      /* Feathered to nothing at the edges, so a sprite never shows the
-         rectangle it was cut from. */
+      /* Feathered only at the rim. The sprite keeps a full-strength
+         interior out to 58% of its radius and softens from there, so
+         what arrives in the scene is a cloud with a shape. A feather
+         that starts falling from the centre — which is what `1 - r²`
+         does — turns every sprite into a round smudge, and a sky full
+         of round smudges is the fog this used to look like. */
       const r = Math.sqrt(x * x + y * y) / half;
-      const feather = Math.max(0, 1 - r * r * 1.25);
+      const t = (r - 0.58) / (1 - 0.58);
+      const edge = t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+      const feather = 1 - edge;
 
       const luma = (px[p] * 0.2126 + px[p + 1] * 0.7152 + px[p + 2] * 0.0722) / 255;
-      /* Cloud is the lit part of the frame. Below `floor` is sky and
-         goes transparent; above `ceil` is full cloud. */
-      const floorL = 0.12;
-      const ceilL = 0.52;
+      /* A narrow window between sky and cloud, so the sprite has
+         genuinely opaque cores and genuinely clear gaps instead of
+         one continuous half-transparent veil. The old 0.12–0.52 ramp
+         put almost every pixel of a dark monsoon frame somewhere in
+         the middle of its range: nothing solid, nothing clear, and
+         therefore no silhouette anywhere. */
+      const floorL = 0.2;
+      const ceilL = 0.41;
       let a = (luma - floorL) / (ceilL - floorL);
       a = a < 0 ? 0 : a > 1 ? 1 : a;
       a = a * a * (3 - 2 * a);
+      a = Math.min(1, a * 1.3);
 
       px[p + 3] = Math.round(a * feather * 255);
-      /* Lifted a little: these are lit from in front once they are in
-         the scene, not read off a backlit photograph. */
-      px[p] = Math.min(255, px[p] * 1.22 + 10);
-      px[p + 1] = Math.min(255, px[p + 1] * 1.18 + 10);
-      px[p + 2] = Math.min(255, px[p + 2] * 1.14 + 12);
+
+      /* Contrast pushed *out* from the midpoint rather than lifted
+         flat. The highlight and shadow already in the photograph are
+         what give a billboard its volume — a billboard has one normal
+         and no lighting of its own, so the only modelling it can
+         carry is the modelling in its own texture. Lifting every
+         channel, as this did before, erased exactly that. */
+      for (let c = 0; c < 3; c += 1) {
+        const n = px[p + c] / 255;
+        px[p + c] = Math.round(
+          Math.max(0, Math.min(1, (n - 0.46) * 1.52 + 0.5)) * 255,
+        );
+      }
     }
 
     ctx.putImageData(frame, 0, 0);
@@ -438,7 +457,10 @@ export function SkyFlight({ src }: { src: string }) {
 
     /* Depth fade. Far clouds lose contrast into the photograph behind
        them, which is what welds the 3D to the plate. */
-    scene.fog = new THREE.Fog(0x2a2430, 320, 1150);
+    /* Only the back of the field fades. Starting the fall-off at 320
+       of an 1150-deep field washed four fifths of the clouds into one
+       flat tone, which is most of why the sky read as haze. */
+    scene.fog = new THREE.Fog(0x221c28, 680, 1620);
 
     const disposables: Array<{ dispose: () => void }> = [];
     let frame = 0;
@@ -506,8 +528,30 @@ export function SkyFlight({ src }: { src: string }) {
         (rand() - 0.42) * halfH * 1.5,
         z,
       );
-      const scale = halfW * (0.46 + rand() * 0.5);
-      mesh.scale.set(scale, scale * (0.62 + rand() * 0.2), 1);
+      /* Size: big masses with smaller formations between them, rather
+         than one uniform grade of blob. */
+      const mass = rand();
+      const bulk = mass > 0.68 ? 0.8 + rand() * 0.55 : 0.34 + rand() * 0.34;
+      const scale = halfW * bulk;
+      mesh.scale.set(scale, scale * (0.58 + rand() * 0.26), 1);
+
+      /* Tone, from where this cloud sits relative to the key light.
+
+         A billboard has one normal, so lighting it with the scene's
+         lamps would shade every cloud in the field identically and
+         model none of them. What reads as volume across a sky is the
+         difference *between* formations — the ones turned toward the
+         light carrying a warm edge, the ones behind them sitting
+         cold and dark. So the tone is placed, not lit: bright and
+         warm on the key side of the frame, cool and deep away from
+         it, with enough spread that no two neighbours match. */
+      const lit = 1 - column;
+      const warmth = lit * 0.72 + rand() * 0.28;
+      (mesh.material as THREE.MeshBasicMaterial).color.setHSL(
+        0.08 + (1 - warmth) * 0.64,
+        0.1 + (1 - warmth) * 0.1,
+        0.3 + warmth * 0.58,
+      );
       mesh.rotation.z = rand() * Math.PI * 2;
       entry.spin = (rand() - 0.5) * 0.012;
       entry.drift = (rand() - 0.5) * 1.6;
@@ -529,7 +573,9 @@ export function SkyFlight({ src }: { src: string }) {
           depthWrite: false,
           opacity: 0,
           fog: true,
-          color: new THREE.Color().setHSL(0.72 + rand() * 0.06, 0.12, 0.46 + rand() * 0.2),
+          /* Set per placement, from where the cloud sits relative to
+             the key. See `placeCloud`. */
+          color: new THREE.Color(0xffffff),
         });
         disposables.push(material);
         const mesh = new THREE.Mesh(plane, material);
@@ -621,11 +667,15 @@ export function SkyFlight({ src }: { src: string }) {
       .to(flight, { speed: 3.4, duration: 5.2, ease: "power3.out" }, 11)
       .to(flight, { lift: 0.5, duration: 4.8, ease: "power2.out" }, 11.4)
       .to(flight, { bank: 0, duration: 4.4, ease: "sine.inOut" }, 11.8)
-      /* And the field thins as it settles. The flight is the arrival;
-         what the visitor then sits with is ŹPF's photograph, with
-         weather still moving through it — not a render that has
-         covered the picture up. */
-      .to(flight, { spread: 0.46, duration: 6, ease: "power2.out" }, 11.5);
+      /* And the field eases back as it settles — but only a little.
+         It used to fall to 0.46, from a time when the sprites were
+         soft enough that holding them up read as haze over the
+         photograph. Now that a cloud has a silhouette, thinning it to
+         half strength is what made the resting sky look like fog: the
+         formations were there and simply too faint to be read as
+         anything. The photograph still carries the frame; the
+         weather in front of it stays legible. */
+      .to(flight, { spread: 0.82, duration: 6, ease: "power2.out" }, 11.5);
 
     /* ---- Sizing ---- */
     const resize = () => {
@@ -665,7 +715,7 @@ export function SkyFlight({ src }: { src: string }) {
           const near = THREE.MathUtils.smoothstep(d, 6, 70);
           const far = 1 - THREE.MathUtils.smoothstep(d, 820, 1140);
           (mesh.material as THREE.MeshBasicMaterial).opacity =
-            near * far * 0.62 * flight.spread;
+            near * far * 0.94 * flight.spread;
 
           if (mesh.position.z > NEAR) placeCloud(entry, false);
         }

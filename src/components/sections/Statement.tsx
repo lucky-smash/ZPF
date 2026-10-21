@@ -40,14 +40,19 @@ export function Statement() {
           </Reveal>
         </div>
 
-        {/* Offset downward so the two columns never line up. */}
-        <div className="md:col-span-4 md:col-start-9 md:pt-24">
+        {/* Offset downward so the two columns never line up — but only
+           by a little. A 3/4 plate in a four-column well runs about
+           230px past the prose beside it, and the figure caption ends
+           up stranded at the bottom of a void rather than closing the
+           section. A shorter plate and a smaller offset keep the
+           asymmetry and lose the hole. */}
+        <div className="md:col-span-4 md:col-start-9 md:pt-10">
           <Reveal y={40}>
             <div className="overflow-hidden">
               <Parallax distance={14}>
                 <Figure
                   asset={statement.image}
-                  ratio="3 / 4"
+                  ratio="4 / 5"
                   sizes="(max-width: 48rem) 100vw, 33vw"
                   className="scale-110"
                 />

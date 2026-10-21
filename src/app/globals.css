@@ -1177,41 +1177,6 @@ html[data-intro-lock] body {
   background-color: #fff8ee;
 }
 
-/* ------------------------------------------------------------------
-   THE SKIP
-   Top right, in the rail's own capitals. Always reachable, always
-   first in the tab order of the overlay.
-   ------------------------------------------------------------------ */
-.intro-skip {
-  position: absolute;
-  top: calc(26 * var(--kpx));
-  right: var(--gutter);
-  z-index: 9;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.7rem 0.25rem;
-  color: var(--color-ash);
-  /* It has to hold up over the flash as well as over the black it
-     starts on. */
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.85);
-  transition: color 0.4s var(--ease-gate);
-}
-
-.intro-skip:hover,
-.intro-skip:focus-visible {
-  color: var(--color-bone);
-}
-
-/* The breathing shutter mark beside it. */
-.intro-skip-dot {
-  width: calc(5 * var(--kpx));
-  height: calc(5 * var(--kpx));
-  border-radius: 50%;
-  background-color: var(--color-signal);
-  animation: breathe 1.5s ease-in-out infinite;
-}
-
 /* ==================================================================
    THE DRAWN CAMERA
    A 35mm single-lens reflex in SVG — see RetroCamera.tsx for the
